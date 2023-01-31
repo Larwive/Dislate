@@ -1,1 +1,1 @@
-worker: python3 Dislate/main.py
+worker: python3 main.py
