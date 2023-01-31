@@ -1,0 +1,1 @@
+worker: python3 /Users/kevinshao/PycharmProjects/Dislate/main.py
