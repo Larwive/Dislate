@@ -1,1 +1,1 @@
-worker: python3 /Users/kevinshao/PycharmProjects/Dislate/main.py
+worker: python3 Dislate/main.py
