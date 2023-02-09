@@ -1,3 +1,6 @@
+import asyncio
+from typing import Optional, Literal
+
 import deepl
 from random import randint
 import requests
@@ -8,16 +11,31 @@ from discord import app_commands
 import os
 from discord.ext import commands
 from datetime import datetime
-from data_ import authorized_channels, auth_languages, dic, help_text_source, help_text_target, quotes, chars
+
+from discord.ext.commands import Greedy
+
+from data_ import authorized_channels, auth_languages, dic, help_text_source, help_text_target, quotes, chars, guilds
 
 gifs_number = 100
-all_gifs = {}
+#all_gifs = {}
 
-guilds = [discord.Object(743319254107029584), discord.Object(1021336800079380480)]
+
 
 intents = discord.Intents.all()
 
-bot = commands.Bot(command_prefix=".", intents=intents)  # Change le préfix ici
+
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=".", intents=intents)
+
+    async def setup_hook(self):
+        await self.load_extension('gifs')
+
+
+bot = MyBot()
+
+bot.all_gifs = {}
+# bot = commands.Bot(command_prefix=".", intents=intents)  # Change le préfix ici
 bot.remove_command('help')
 # slash = SlashCommand(bot, sync_commands=True)
 # Pour les commandes slash
@@ -96,198 +114,6 @@ async def ping(interaction):
         pass
 
 
-@bot.tree.command(name="pat", description="Pat someone", guilds=guilds)
-async def pat(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> pats <@{}> !".format(interaction.user.id, user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["pat"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["pat"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "pat"))
-
-
-@bot.tree.command(name="kiss", description="Kiss someone", guilds=guilds)
-async def kiss(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> kisses <@{}> !".format(interaction.user.id, user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["kiss"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["kiss"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "kiss"))
-
-
-@bot.tree.command(name="hit", description="Hit someone", guilds=guilds)
-async def hit(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> hits <@{}> !".format(interaction.user.id, user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["hit"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["hit"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "hit"))
-
-
-@bot.tree.command(name="slap", description="Slap someone", guilds=guilds)
-async def slap(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> slaps <@{}> !".format(interaction.user.id, user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["slap"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["slap"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "slap"))
-
-
-@bot.tree.command(name="happy", description="Show that you're happy.", guilds=guilds)
-async def happy(interaction):
-    embed = discord.Embed(description="<@{}> is happy !".format(interaction.user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["happy"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["happy"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "happy"))
-
-
-@bot.tree.command(name="sad", description="Show that you're sad", guilds=guilds)
-async def sad(interaction):
-    embed = discord.Embed(description="<@{}> is sad !".format(interaction.user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["sad"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["sad"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "sad"))
-
-
-@bot.tree.command(name="angry", description="Show that you're angry.", guilds=guilds)
-async def angry(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> is angry at <@{}> !".format(interaction.user.id, user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["angry"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["angry"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "angry"))
-
-
-@bot.tree.command(name="hungry", description="Are you hungry enough to use this command ?", guilds=guilds)
-async def hungry(interaction):
-    embed = discord.Embed(description="<@{}> is hungry...".format(interaction.user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["hungry"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["hungry"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "hungry"))
-
-
-@bot.tree.command(name="jealous", description="Are you jealous of someone ?", guilds=guilds)
-async def jealous(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> is jealous of <@{}>.".format(interaction.user.id, user.id),
-                          colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["jealous"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["jealous"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "jealous"))
-
-
-@bot.tree.command(name="innocent", description="Are you truly innocent to invoke this command ?", guilds=guilds)
-async def innocent(interaction):
-    embed = discord.Embed(description="<@{}> is innocent... really ?".format(interaction.user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["innocent"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["innocent"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "innocent"))
-
-
-@bot.tree.command(name="bigbraintime", description="It's big brain time !", guilds=guilds)
-async def bigbraintime(interaction):
-    embed = discord.Embed(description="<@{}> is having a big brain time !".format(interaction.user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["big brain time"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["big brain time"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "big brain time"))
-
-
-@bot.tree.command(name="sus", description="Psst, tell me who's sus.", guilds=guilds)
-async def sus(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> is sus.".format(user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["sus"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["sus"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "sus"))
-
-
-@bot.tree.command(name="cringe", description="Looks like someone is cringe.", guilds=guilds)
-async def cringe(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> is so cringe.".format(user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["cringe"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["cringe"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "cringe"))
-
-
-@bot.tree.command(name="strange", description="To use when someone is acting strange.", guilds=guilds)
-async def strange(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> is acting strange...".format(user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["strange"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["strange"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "strange"))
-
-
-@bot.tree.command(name="dab", description="Dab whenever you want.", guilds=guilds)
-async def dab(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> dabs !".format(user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["dab"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["dab"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "dab"))
-
-
-@bot.tree.command(name="dealer", description="When you want to report a dealer.", guilds=guilds)
-async def dealer(interaction, user: discord.User):
-    embed = discord.Embed(description="<@{}> got some deals !".format(user.id), colour=0xB991FF,
-                          timestamp=datetime.utcnow())
-    embed.set_footer(text="Dislate")
-    number = randint(0, 49)
-    embed.set_image(url=all_gifs["dealer"]["results"][number]["media_formats"]["gif"]["url"])
-    await interaction.response.send_message(embed=embed)
-    requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(
-        all_gifs["dealer"]["results"][number]["id"], os.environ.get("TENOR"), "Dislate", "dealer"))
-
 
 # @tree.command(name = "help", description = "The command that helps you use dislate.", guilds=[discord.Object(743319254107029584), discord.Object(1021336800079380480)])
 # """"""
@@ -331,34 +157,70 @@ async def h(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"You're under cooldown, please try again in {round(error.retry_after, 2)} seconds.")
+"""
+@bot.command()
+@commands.guild_only()
+@commands.is_owner()
+async def sync(
+  ctx, guilds: Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:
+    if not guilds:
+        if spec == "~":
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "*":
+            ctx.bot.tree.copy_global_to(guild=ctx.guild)
+            synced = await ctx.bot.tree.sync(guild=ctx.guild)
+        elif spec == "^":
+            ctx.bot.tree.clear_commands(guild=ctx.guild)
+            await ctx.bot.tree.sync(guild=ctx.guild)
+            synced = []
+        else:
+            synced = await ctx.bot.tree.sync()
 
+        await ctx.send(
+            f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+        )
+        return
+
+    ret = 0
+    for guild in guilds:
+        try:
+            await ctx.bot.tree.sync(guild=guild)
+        except discord.HTTPException:
+            pass
+        else:
+            ret += 1
+
+    await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")"""
 
 @bot.event
 async def on_ready():
-    for guild in guilds:
-        await bot.tree.sync(guild=guild)
+    #for guild in guilds:
+        #await bot.tree.sync(guild=guild)
+    await bot.tree.sync()
+    #await bot.setup_hook()
     searchs = ["pat", "kiss", "hit", "slap", "happy", "sad", "angry", "hungry", "jealous", "innocent", "big brain time",
                "sus", "cringe", "strange", "dab", "dealer"]
     # try:
     for i, search in enumerate(searchs):
-        r = requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(search,
-                                                                                                            os.environ.get(
-                                                                                                                "TENOR"),
-                                                                                                            "Dislate",
-                                                                                                            50))
+        r = requests.get("https://tenor.googleapis.com/v2/search?q={}&key={}&client_key={}&limit={}".format(search, os.environ.get("TENOR"), "Dislate", 50))
         if r.status_code == 200:
-            all_gifs[searchs[i]] = json.loads(r.content)
+            bot.all_gifs[searchs[i]] = json.loads(r.content)
             # print(json.loads(r.content)["results"][40])
             # print(gifs)
     # except:
     # pass
-    # await bot.tree.sync(guild=discord.Object(id=1021336800079380480))
+    #await bot.tree.sync(guild=discord.Object(id=1021336800079380480))
     print("Logged in as {0.user}".format(bot))
 
 
 # keep_alive()
 # bot.add_cog(Owner(bot))
 # bot.add_command(randomen)
+#bot.load_extension("gifs.py")
 
-bot.run(str(os.environ.get("TOKEN", None)))
+
+bot.run(token=str(os.environ.get("TOKEN", None)))
+
+
+# asyncio.run(main())
 # client.run(str(os.environ.get("TOKEN", None)))
