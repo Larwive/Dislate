@@ -11,6 +11,7 @@ from discord import app_commands
 import os
 from discord.ext import commands
 from datetime import datetime
+from game_func import *
 
 from discord.ext.commands import Greedy
 
@@ -30,6 +31,7 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         await self.load_extension('gifs')
+        await self.load_extension('game_cogs')
 
 
 bot = MyBot()
@@ -95,7 +97,6 @@ async def randomen(ctx):
   await ctx.send("This brings you to a random page of Bulbapedia : https://bulbapedia.bulbagarden.net/wiki/Special:Random")
 """
 
-
 @bot.tree.command(name="translate", description="A translator using Deepl.", guilds=guilds)
 async def translate(interaction, text: str, target_language: str, source_language: str = "EN"):
     try:
@@ -157,6 +158,8 @@ async def h(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"You're under cooldown, please try again in {round(error.retry_after, 2)} seconds.")
+
+
 """
 @bot.command()
 @commands.guild_only()
@@ -210,6 +213,12 @@ async def on_ready():
     # except:
     # pass
     #await bot.tree.sync(guild=discord.Object(id=1021336800079380480))
+
+    if not os.path.exists("data.db"):
+        init_game()
+        init_lock()
+        init_poke()
+        init_options()
     print("Logged in as {0.user}".format(bot))
 
 

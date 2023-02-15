@@ -1,11 +1,15 @@
 import numpy as np
 
-nb = [2, 3, 5, 7, 11]
+authors = [867494961866997760]
+nb = [2, 3, 5, 7, 11] #unused yet
+defaultoption = [True, False, 0x000000, 0, False, False, False, False]
+#v.o.l., unused, color, language, privacy, link to dex, see game stats (secret), Color depending on rarity (secret)
+
 languages = ["en", "fr", "ge", "ch", "ko", "jr", "ja"]
 rarityname = ["Common", "Uncommon", "Rare", "Rarer", "Very Rare", "Pseudo legendary", "Legendary", "Mythical", "Ultra-beast", "God", "Egg", "Unknown"]
 catchrate = [71, 55, 50, 40, 30, 15, -5, -10, -20, -99, -1000]
 releasemoney = [150, 300, 600, 1000, 1200, 1500, 5000, 10000, 7500, 1000000, 5000]
-spawnweight = [1511000000, 750000000, 150000000, 50000000, 7000000, 5000000, 1890000, 20000, 10000, 1]
+spawnweights = [1511000000, 750000000, 150000000, 50000000, 7000000, 5000000, 1890000, 20000, 10000, 1]
 
 listballs = ["pb", "gb", "ub", "mb", "rb", "bb", "qb", "db", "cb", "prb", "fb"]
 ballcr = [10, 15, 25, 0, 100, 20, 15, 10, 10, 10, 0]
