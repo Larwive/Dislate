@@ -79,12 +79,14 @@ def init_game():
        prbused INTEGER DEFAULT 0,
        fb INTEGER DEFAULT 0,
        fbused INTEGER DEFAULT 0,
+       rrazz INTEGER DEFAULT 0,
        rrazzleft INTEGER DEFAULT 0,
-       frazzleft INTEGER DEFAULT 0,
-       lmleft INTEGER DEFAULT 0,
        rrazzused INTEGER DEFAULT 0,
+       frazz INTEGER DEFAULT 0,
+       frazzleft INTEGER DEFAULT 0,
        frazzused INTEGER DEFAULT 0,
-       lmused INTEGER DEFAULT 0,
+       lmleft INTEGER DEFAULT 0,
+       lmencounter INTEGER DEFAULT 0,
        hatched INTEGER DEFAULT 0,
        triviamoney INTEGER DEFAULT 0
   )
@@ -252,12 +254,24 @@ def getgame(player_id, name):
   data.close()
   return result[0]
 
-"""
-def additems(item, amount, id, name):
+def getspawnweights(player_id:int):
+  spawnweight = spawnweights
+  frazzleft, rrazzleft, lmleft, money = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money")
+  if frazzleft > 0:
+    for i in range(6, len(spawnweight)):
+      spawnweight[i] = int(spawnweight[i] / 2)
+  if rrazzleft > 0:
+    for i in range(6, len(spawnweight)):
+      spawnweight[i] *= 2
+  if lmleft > 0 and money > 2500:
+    for i in range(6, len(spawnweight)):
+      spawnweight[i] *= 3
+  return spawnweight
+"""def additems(item, amount, id):
   try:
     item = int(item) -1
     if item < len(buyableitems) and amount > 0:
-      datas = getdata(id, name)
+      datas = getdata(id)
       price = buyableitems[item][2]*amount
       if price > datas[9]:
         return False, False, 51
