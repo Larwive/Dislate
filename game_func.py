@@ -497,7 +497,7 @@ def getboxembed(name:str, color:int, language:int, max_pages:int, page:int, box:
   sortedby = ["Dex order", "Rarity descending", "Rarity ascending", "Rarity descending with shinies first"]
   embed = discord.Embed(title="{}'s box".format(name), colour=color, timestamp=datetime.utcnow())
   embed.set_footer(text="Dislate")
-  embed.add_field(name="Page {}/{} ({})".format(1, total, sortedby[sort]), value=text, inline=True)
+  embed.add_field(name="Page {}/{} ({})".format(1, max_pages, sortedby[sort]), value=text, inline=True)
   return embed
 def getrarity(number):
   if number in commonpool:

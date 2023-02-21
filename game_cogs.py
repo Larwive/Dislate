@@ -4,7 +4,7 @@ import typing
 import discord
 from datetime import datetime
 import sqlite3
-from discord import app_commands
+from discord import app_commands, PartialEmoji
 from discord.ext import commands
 from random import randint, choices
 from game_data import *
@@ -42,14 +42,15 @@ class Box(discord.ui.View):
     page:int = 1
     sort:int = 1
     def __init__(self, player_id:int, name:str, color:int, language:int, max_pages:int, box:list, timeout):
-        super().__init__(timeout=timeout)
-        self.message = None
+        print("hh")
         self.player_id = player_id
         self.name = name
         self.color = color
         self.max_pages = max_pages
         self.box = box
         self.language = language
+        print("init")
+        super().__init__(timeout=timeout)
 
     async def disable(self) -> None:
         for item in self.children:
@@ -59,21 +60,22 @@ class Box(discord.ui.View):
     async def on_timeout(self) -> None:
         await self.disable()
 
-    @discord.ui.button(emoji=":arrow_right:")
-    async def next(self, interaction:discord.Interaction):
-        if interaction.user.id == self.player_id:
-            self.page = (self.page+1)%self.max_pages + 1
-            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
-            self.message.edit_original_response(embed=embed, view=self)
-    @discord.ui.button(emoji=":arrow_left:")
-    async def previous(self, interaction:discord.Interaction):
+    @discord.ui.button(label=":arrow_left:")
+    async def previous(self, interaction:discord.Interaction, button:discord.ui.Button):
         if interaction.user.id == self.player_id:
             self.page = (self.page-1)%self.max_pages + 1
             embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
             self.message.edit_original_response(embed=embed, view=self)
 
-    @discord.ui.button(emoji=":arrows_counterclockwise:")
-    async def newsort(self, interaction:discord.Interaction):
+    @discord.ui.button(label=":arrow_right:")
+    async def next(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.page = (self.page+1)%self.max_pages + 1
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            self.message.edit_original_response(embed=embed, view=self)
+
+    @discord.ui.button(label=":arrows_counterclockwise:")
+    async def newsort(self, interaction:discord.Interaction, button:discord.ui.Button):
         if interaction.user.id == self.player_id:
             self.sort = (self.sort+1)%4+1
             embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
@@ -195,7 +197,7 @@ class Owner(commands.Cog):
             await ctx.send("Cleared the rb recoil.")
 
     @commands.command(hidden = True)
-    async def moneymoneymoney(self):#, giveid: typing.Optional[str] = "373707498479288330"):
+    async def moneymoneymoney(self, ctx):#, giveid: typing.Optional[str] = "373707498479288330"):
         """if ctx.message.author.id in authors:
             try:
                 giveid = str(ctx.message.mentions[0].id)
@@ -413,7 +415,7 @@ class Miscellaneous(commands.Cog):
         #    await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
 
     @toggle.autocomplete('option')
-    async def option_autocomplete(self, current:str) -> typing.List[app_commands.Choice[str]]:
+    async def option_autocomplete(self, interaction: discord.Interaction, current:str) -> typing.List[app_commands.Choice[str]]:
         names = ["View other languages", "Privacy", "Links in dex", "Game stats", "Rarity color"]
         short = ["vol", "privacy", "dexlink", "gamestats", "raritycolor"]
         return [app_commands.Choice(name=names[short.index(l)], value=l) for l in short if current.lower() in l.lower()]
@@ -434,7 +436,7 @@ class Miscellaneous(commands.Cog):
             await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
 
     @lang.autocomplete('lang')
-    async def lang_autocomplete(self, current: str, ) -> typing.List[app_commands.Choice[str]]:
+    async def lang_autocomplete(self, interaction: discord.Interaction, current: str, ) -> typing.List[app_commands.Choice[str]]:
         names = ["English", "Français", "Deutsch", "中文", "한국인", "日本語", "日本語"]
         return [
             app_commands.Choice(name=names[languages.index(l)], value=l)
@@ -833,9 +835,9 @@ class Game(commands.Cog):
 
         sortedbox, total, color, language, privacy, name = 0, 0, options[0], options[1], options[2], options[3]
         if interaction.user.id != user_id and privacy:
-            await interaction.response.send_message("You can't see this player's box.")
+            await interaction.response.send_message("You can't see this player's box.", ephemeral=True)
             return
-
+        print(1)
         box = []
         for i in range(1, len(dex), 5):
             pack = extractlist(user_id, "pokemon", i)
@@ -845,16 +847,21 @@ class Game(commands.Cog):
                 if pack[j] > 0 or spack[j]:
                     rarity = getrarity(i+j+1)
                     box.append([i+j, pack[j], spack[j], rarity])
-
-        view = Box(user_id, name, color, language, len(box)//20, box, 20)
+        print(box)
         max_pages = len(box)//20+1
+        view = Box(user_id, name, color, language, max_pages, box, 20)
+        print("view")
+
         if page>max_pages:
             page = max_pages
-
+        print(max_pages)
         embed = getboxembed(name, color, language, max_pages, page, box, 1)
-        message = await interaction.response.send_message(embed=embed)
+        print("getting embed")
+        message = await interaction.response.send_message(embed=embed, view=view)
         view.message = message
+        print(type(view.message))
         await view.wait()
+        await view.disable()
 
                     #total += 1
         #total = int((total - 1) / 20) + 1
@@ -1236,7 +1243,7 @@ class Game(commands.Cog):
 
 
     @recoilball.autocomplete('upgrade')
-    async def shop_autocomplete(self, current: str,) -> typing.List[app_commands.Choice[str]]:
+    async def shop_autocomplete(self, interaction: discord.Interaction, current: str,) -> typing.List[app_commands.Choice[str]]:
         names = ["reducer", "effect", "luck"]
         short = ["rbred", "rbeffect", "rbluck"]
         return [
