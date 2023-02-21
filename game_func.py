@@ -255,7 +255,7 @@ def getgame(player_id, name):
   return result[0]
 
 def getspawnweights(player_id:int):
-  spawnweight = spawnweights
+  spawnweight = spawnweights.copy()
   frazzleft, rrazzleft, lmleft, money = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money")
   if frazzleft > 0:
     for i in range(6, len(spawnweight)):
@@ -380,7 +380,6 @@ def extract(player_id, incomplete_key, dex_number):
   :param dex_number: The dex number's data you want to read
   :return: The read value
   """
-
   data = sqlite3.connect("data.db")
   cursor = data.cursor()
   cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-1-(dex_number-1)%5+1, player_id))
@@ -392,6 +391,29 @@ def extract(player_id, incomplete_key, dex_number):
   for i in range(l - 1, -1, -1):
     n += chars.index(result[i]) * 36 ** (l - 1 - i)
   return n
+
+def extractlist(player_id, incomplete_key, dex_number):
+  """
+  Read datas from the poke table.
+  :param player_id: The Discord id of the player
+  :param incomplete_key: The key you want to complete
+  :param dex_number: The dex number's data you want to read
+  :return: The read value
+  """
+  data = sqlite3.connect("data.db")
+  cursor = data.cursor()
+  cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-1-(dex_number-1)%5+1, player_id))
+  result, = cursor.fetchone()
+  data.close()
+  result = result.split("-")#[(dex_number-1)%5]
+  L = []
+  for amount in result:
+    l = len(amount)
+    n = 0
+    for i in range(l - 1, -1, -1):
+      n += chars.index(result[i]) * 36 ** (l - 1 - i)
+    L.append(n)
+  return L
 
 def write(datas, dex_number, new_value, add=0):
   """

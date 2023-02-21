@@ -32,14 +32,44 @@ class ballbutton(discord.ui.Button):
 
 class Balls(discord.ui.View):
     sentball:str = None
-    def __init__(self, balldic:dict, player_id):
-        super().__init__()
+    def __init__(self, balldic:dict, player_id:int, timeout):
+        super().__init__(timeout=timeout)
         self.balldic = balldic
         self.player_id = player_id
         for key in list(self.balldic.keys()):
             if self.balldic[key]>0:
                 self.add_item(ballbutton(key, player_id))
 
+class Box(discord.ui.View):
+    page:int = 1
+    sort:int = 1
+    def __init__(self, player_id:int, max_pages:int, timeout):
+        super().__init__(timeout=timeout)
+        self.player_id = player_id
+        self.max_pages = max_pages
+
+    async def disable(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        await self.message.edit(view=self)
+
+    async def on_timeout(self) -> None:
+        await self.disable()
+
+    @discord.ui.button(emoji=":arrow_right:")
+    async def next(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.page = (self.page+1)%self.max_pages + 1
+
+    @discord.ui.button(emoji=":arrow_left:")
+    async def previous(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.page = (self.page-1)%self.max_pages + 1
+
+    @discord.ui.button(emoji=":arrows_counterclockwise:")
+    async def newsort(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.sort = (self.sort+1)%4+1
 
 class Owner(commands.Cog):
     def __init__(self, bot):
@@ -106,10 +136,10 @@ class Owner(commands.Cog):
                 giveid = ctx.message.mentions[0].id
             except:
                 giveid = str(giveid)
-            datas = setdata(giveid, None)
-            datas[21] = [True, dexnumber, shiny]
-            await ctx.send \
-                ("You gave a {}{} special encounter to {}.".format(["", "shiny "][shiny], dex[dexnumber -1][0], giveid))
+            #datas = setdata(giveid, None)
+            setdata(giveid, "game", "seenabled, sedex, seisshiny", [True, dexnumber, shiny])
+            #datas[21] = [True, dexnumber, shiny]
+            await ctx.send("You gave a {}{} special encounter to {}.".format(["", "shiny "][shiny], dex[dexnumber -1][0], giveid))
             # db["player_data"+giveid] = datas
 
     @commands.command(hidden = True)
@@ -314,16 +344,15 @@ class Miscellaneous(commands.Cog):
     async def message(self, interaction, message: str):
         """Use this command to send a message to the owner of the bot. Don't be shy !
         """
-        try:
-            embed = discord.Embed(title="Message by user",
-                                  description="`Author :`{} / {}".format(str(interaction.user), str(
-                                      interaction.user.id)), colour=0x234564, timestamp=datetime.utcnow())
-            embed.add_field(name="`Message :`", value=" ".join(message), inline=False)
-            embed.set_footer(text="Dislate")
-            await interaction.client.get_channel(794211311214788608).send(embed=embed)
-            await interaction.response.send_message("Message sent.", ephemeral=True)
-        except:
-            await interaction.response.send_message("Your message must be 1024 or fewer in length.", ephemeral=True )
+        #try:
+        embed = discord.Embed(title="Message by user",
+                              description="`Author :`{} / {}".format(interaction.user, interaction.user.id), colour=0x234564, timestamp=datetime.utcnow())
+        embed.add_field(name="`Message :`", value=message, inline=False)
+        embed.set_footer(text="Dislate")
+        await interaction.client.get_channel(1076922920472948806).send(embed=embed)
+        await interaction.response.send_message("Message sent.", ephemeral=True)
+        #except:
+            #await interaction.response.send_message("Your message must be 1024 or fewer in length.", ephemeral=True )
 
     @app_commands.command(name="toggle", description="Toggle your options")
     @app_commands.checks.cooldown(1, 5)
@@ -534,6 +563,8 @@ class Game(commands.Cog):
             add_game["money"] = -2500
             effecttext += "\nLucky machine ({} encounter{} left)".format(lmleft, ["s", ""][lmleft==1])
             luckye = True
+        if recleft>0:
+            effecttext += "\nRecoil ({} encounter{} left)".format(recleft, ["s", ""][recleft == 1])
         if seenabled:
             spawnnumber = sedex - 1
             shiny = seisshiny
@@ -546,7 +577,10 @@ class Game(commands.Cog):
             spawnnumber = choices(
                 [commonpool, uncommonpool, rarepool, rarerpool, veryrarepool, pseudolegendarypool, legendarypool,
                     mythicalpool, ultrabeastpool, god][rarity])[0] - 1
-
+        if dreamed == spawnnumber:
+            effecttext += "\nThis is your dreamed Pokémon !"
+        if partner == spawnnumber:
+            effecttext += "\nThis is your partner Pokémon !"
         Rarity = rarityname[rarity]
         spawn = dex[spawnnumber]
         if raritycolor:
@@ -571,49 +605,49 @@ class Game(commands.Cog):
             else:
                 rarespawns.set_image(
                     url="http://play.pokemonshowdown.com/sprites/ani/{}.gif".format(spawn[0].replace(". ", "")))
-            await interaction.client.get_channel(831389415858896896).send(embed=rarespawns)
+            await interaction.client.get_channel(1076902678099140758).send(embed=rarespawns)
 
         if shiny:
-            shiny = extract(player_id, "pokeshi", spawnnumber+1)
-            text = "Rarity : 1/8192\nCaught : {}".format(shiny)
+            cshiny = extract(player_id, "pokeshi", spawnnumber+1)
+            text = "Rarity : 1/8192\nCaught : {}".format(cshiny)
         else:
             normal = extract(player_id, "pokemon", spawnnumber+1)
             text = "Rarity : {}\nCaught : {}".format(Rarity, normal)
         balldic = {}
         if pb > 0:
-            text += "\n`pb` Pokéball : {}".format(pb)
+            text += "\n<:pb:{}> Pokéball : {}".format(ballsid[listballs.index("pb")], pb)
             balldic["pb"] = pb
         if gb > 0:
-            text += "\n`gb` Greatball : {}".format(gb)
+            text += "\n<:gb:{}> Greatball : {}".format(ballsid[listballs.index("gb")], gb)
             balldic["gb"] = gb
         if ub > 0:
-            text += "\n`ub` Ultraball : {}".format(ub)
+            text += "\n<:ub:{}> Ultraball : {}".format(ballsid[listballs.index("ub")], ub)
             balldic["ub"] = ub
         if mb > 0:
-            text += "\n`mb` Masterball : {}".format(mb)
+            text += "\n<:mb:{}> Masterball : {}".format(ballsid[listballs.index("mb")], mb)
             balldic["mb"] = mb
         if rb > 0:
             text += "\n`rb` Recoilball : {}".format(rb)
             balldic["rb"] = rb
-        if recleft > 0:
-            text += "\nRecoil left : {}".format(recleft)
+        #if recleft > 0:
+        #    text += "\nRecoil left : {}".format(recleft)
         if bb > 0:
-            text += "\n`bb` Beastball : {}".format(bb)
+            text += "\n<:bb:{}> Beastball : {}".format(ballsid[listballs.index("bb")], bb)
             balldic["bb"] = bb
         if qb > 0:
-            text += "\n`qb` Quickball : {}".format(qb)
+            text += "\n<:qb:{}> Quickball : {}".format(ballsid[listballs.index("qb")], qb)
             balldic["qb"] = qb
         if db > 0:
-            text += "\n`db` Dreamball : {}".format(db)
+            text += "\n<:db:{}> Dreamball : {}".format(ballsid[listballs.index("db")], db)
             balldic["db"] = db
         if cb > 0:
             text += "\n`cb` Cloneball : {}".format(cb)
             balldic["cb"] = cb
         if prb > 0:
-            text += "\n{} Premier ball : {}".format("<:prb:1075795545207099553>" , prb)
+            text += "\n<:prb:{}> Premier ball : {}".format(ballsid[listballs.index("prb")] , prb)
             balldic["prb"] = prb
         if fb > 0:
-            text += "\n`fb` Fifty-fifty ball : " + str(fb)
+            text += "\n`fb` Fifty-fifty ball : {}".format(fb)
             balldic["fb"] = fb
 
         embed.add_field(name="`What to do ?`", value=text, inline=False)
@@ -625,7 +659,7 @@ class Game(commands.Cog):
         else:
             embed.set_image(
                 url="http://play.pokemonshowdown.com/sprites/ani/{}.gif".format(spawn[0].replace(". ", "")))
-        view = Balls(balldic, player_id)
+        view = Balls(balldic, player_id, timeout=20)
         encounter = await interaction.response.send_message(embed=embed, view=view)
         view.message = encounter
         await view.wait()
@@ -649,10 +683,10 @@ class Game(commands.Cog):
             iscaught = 50
         else:
             iscaught = catchrate[rarity] + ballcr[listballs.index(sentball)] - 80 * int(shiny) - 50 * (
-                    recleft > 0) - int(2 * abs(recleft) / (1+25 * rbeffect)) + 40 * int(
+                    recleft > 0) - int(2 * recleft / (1+25 * rbeffect)) + 60 * int(
                 rarity == 8 and sentball == "bb") + 150 * int(
                 dreamed == spawnnumber and sentball == "db") + 150 * int(
-                partner == spawnnumber and sentball == "cb") - 40 * (int(spawnnumber > 721))
+                partner == spawnnumber and sentball == "cb")
         if fakee:
             iscaught += 20
         if raree:
@@ -666,7 +700,7 @@ class Game(commands.Cog):
             #datas[17] += 100 - datas[18][0]
         add_game[sentball] = -1#-fakee-raree
         add_game["{}used".format(sentball)] = 1
-        embed = discord.Embed(title=embedtitle, description=name, colour=color, timestamp=datetime.utcnow())
+        embed = discord.Embed(title=embedtitle, description="{} sent a <:{}:{}>".format(name, sentball, ballsid[listballs.index(sentball)]), colour=color, timestamp=datetime.utcnow())
         embed.set_footer(text="Dislate")
         if shiny:
             embed.set_image(
@@ -687,8 +721,10 @@ class Game(commands.Cog):
                 state = 2  # Chanceux avec honor ball
 
         if randomcatch <= iscaught:
+            if state == 2: # Si une honor ball a été lancée et la capture est réussie
+                state = 3
             gotmoney = randint([99, 120, 300, 600, 1300, 500, 10000, 20000, 10000, 200000][rarity],
-                                [120, 200, 400, 800, 1800, 750, 15000, 25000, 100000, 2000000][rarity])
+                                [120, 200, 400, 800, 1800, 750, 15000, 25000, 100000, 2000000][rarity]) * 5
             coinbonus = int(gotmoney * amuletcoin * 0.05)
             add_game["money"] = gotmoney+coinbonus
             add_game["totalmoney"] = gotmoney+coinbonus
@@ -716,9 +752,11 @@ class Game(commands.Cog):
                                                                                                     randomcatch)
         if state > 0:
             if state == 1:
-                text += "You got lucky but you didn't have Premier ball."
+                text += "\nYou got lucky but you didn't have Premier ball."
             elif state == 2:
-                text += "You got lucky but the Pokémon still fled."
+                text += "\nYou got lucky but the Pokémon still fled."
+            else:
+                text += "\nYou got lucky and caught the Pokémon."
         #change_values, add_values = "", ""
         change_values, add_values = [], []
         embed.add_field(name="`Result`", value=text)
@@ -739,30 +777,43 @@ class Game(commands.Cog):
     @app_commands.command(name="box", description="Show your boxes") # aliases=["pc"]
     @app_commands.checks.cooldown(1, 5)
     async def box(self, interaction, page: typing.Optional[int] = 1, sort: typing.Optional[int] = 1,
-                  id: typing.Optional[int] = -1):
+                  user: discord.User = None):
         """The box command show your owned Pokémon. The default box page is the first one with the national dex number order. You can choose to see a certain page or with a certain sorting order. You must give the page number if you specify the sorting order.\nSyntax : `.box <page> <sorting order number>`\nSorting order : \n`1 (Default)` : The national dex number order.\n`2` : The descending rarity order.\n`3` : The ascending rarity order.\n`4` : The descending order with shinies first.\nExamples : \n`.box`\n`.box 1 1`\n`.box 2 4`
         """
         # sort = 1:Ordre pokédex, 2:Ordre rareté descendant, 3:Ordre rareté ascendant, 4:Ordre rareté descendant avec shinys en premiers
-        if id != -1:
-            try:
-                id = str(ctx.message.mentions[0].id)
-            except:
-                id = str(id)
+        if user is not None:
+            user_id = user.id
         else:
-            id = interaction.user.id
+            user_id = interaction.user.id
         #datas = setdata(id, None)
-        options = getoption(id)
-        sortedbox, text, total, color, language = 0, "", 0, options[2], options[3]
-        if int(interaction.user.id) != id and options[4]:
-            await interaction.response.send_message("You can't see his/her box.")
+        #options = getoption(id)
+        options = getdata(user_id, "options", "color, language, privacy")
+        if options is None:
+            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            return
+
+        sortedbox, text, total, color, language, privacy = 0, "", 0, options[0], options[1], options[2]
+        if interaction.user.id != user_id and privacy:
+            await interaction.response.send_message("You can't see this player's box.")
             return
         if sort > 4:
             sort = 4
-        for i in range(len(dex)):
-            scanning = datas[7][i]
-            if scanning[0] > 0 or scanning[1] > 0:
-                total += 1
-        total = int((total - 1) / 20) + 1
+        box = []
+        for i in range(1, len(dex), 5):
+            pack = extractlist(user_id, "pokemon", i)
+            spack = extractlist(user_id, "pokeshi", i)
+            #scanning = datas[7][i]
+            for j in range(5):
+                if pack[j] > 0:
+                    rarity = getrarity(i+j+1)
+                    box.append([i+j, pack[j], rarity])
+                if spack[j] > 0:
+                    box.append([i + j, pack[j], 12])
+        view = Box(user_id, len(box)//20, 20)
+        message = await interaction.response.send_message()
+        view.message = message
+                    #total += 1
+        #total = int((total - 1) / 20) + 1
         try:
             if sort == 1:
                 for i in range(len(dex)):
@@ -1070,47 +1121,67 @@ class Game(commands.Cog):
             # db["player_data"+id] = datas
 
     @app_commands.command(name="recoilball", description="See and upgrade your recoil ball") #aliases=["rb"]
-    @app_commands.checks.cooldown(1, 10)
-    async def recoilball(self, interaction, upgrading: typing.Optional[str] = ""):
+    @app_commands.checks.cooldown(1, 5)
+    async def recoilball(self, interaction, upgrade: typing.Optional[str] = None):
         """Upgrade your recoilball here.\nReducer : Reduces the number of recoiled encounters a recoilball will give.\nEffect : Reduces the reduction of catch power due to recoil.\nLuck : Give you a higher chance of reducing your accumulated recoil when catching a Pokémon.\nSyntax : `.rb <reducer/effect/luck>`
         """
-        id = str(interaction.user.id)
+        player_id = interaction.user.id
         #datas = setdata(id, str(interaction.user))
-        if upgrading.lower() in ["reducer", "effect", "luck"]:
-            upgrade = ["reducer", "effect", "luck"].index(upgrading.lower())
-            cost = 100 * 20 ** datas[18][upgrade]
-            if datas[9] < cost:
-                await interaction.response.send_message("You need " + str(cost - datas[9]) + " more coins to upgrade the " +
-                               ["reducer.", "effect.", "luck."][upgrade])
-            else:
-                datas[9] -= cost
-                datas[18][upgrade] += 1
-                await interaction.response.send_message("You spent {} to upgrade the recoilball's {} to level {}.".format(cost, ["reducer",
-                                                                                                        "effect",
-                                                                                                        "luck"][
-                    upgrade], datas[18][upgrade]))
-                # db["player_data"+id] = datas
+        money = getdata(player_id, "game", "money")
+        if money is None:
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
+            return
+        money = money[0]
+        if upgrade is None:
+            color, = getdata(player_id, "options", "color")
+            rbred, rbeffect, rbluck = getdata(player_id, "game", "rbred, rbeffect, rbluck")
+            embed = discord.Embed(title="Recoilball", description="Money : {}".format(money), colour=color,
+                                  timestamp=datetime.utcnow())
+            embed.set_footer(text="Dislate")
+            reducertext = "Reduces the number of recoiled encounters a recoilball will give. Current level : {}".format(
+                rbred)
+            if rbred < 20:
+                reducertext += "\nNext cost : {}".format(100 * 2 ** rbred)
+            effecttext = "Reduces the reduction of catch power due to recoil. Current level : {}".format(rbeffect)
+            if rbeffect < 20:
+                effecttext += "\nNext cost : {}".format(100 * 2 ** rbeffect)
+            lucktext = "Give you a higher chance of reducing your accumulated recoil. Current level : {}".format(rbluck)
+            if rbluck < 20:
+                lucktext += "\nNext cost : {}".format(100 * 2 ** rbluck)
+            embed.add_field(name="`Reducer`", value=reducertext, inline=True)
+            embed.add_field(name="`Effect`", value=effecttext, inline=True)
+            embed.add_field(name="`Luck`", value=lucktext, inline=True)
+            await interaction.response.send_message(embed=embed)
+            return
+        if upgrade.lower() in ["rbred", "rbeffect", "rbluck"]:
+            upgrade = upgrade.lower()
+            ind = ["rbred", "rbeffect", "rbluck"].index(upgrade)
+            #upgrade = ["reducer", "effect", "luck"].index(upgrade.lower())
+            level, = getdata(player_id, "game", upgrade)
+            if level>19:
+                await interaction.response.send_message("You can't upgrade your recoil ball's {} any further.".format(["reducer", "effect", "luck"][ind]), ephemeral=True)
                 return
-        options = getoption(id)
-        embed = discord.Embed(title="Recoilball", description="Upgrades", colour=options[2],
-                              timestamp=datetime.utcnow())
-        embed.set_footer(text="Dislate")
-        reducertext = "Reduces the number of recoiled encounters a recoilball will give. Current level : " + str(
-            datas[18][0])
-        if datas[18][0] < 20:
-            reducertext += "\nNext cost : " + str(100 * 20 ** datas[18][0])
-        effecttext = "Reduces the reduction of catch power due to recoil. Current level : " + str(datas[18][1])
-        if datas[18][1] < 20:
-            effecttext += "\nNext cost : " + str(100 * 20 ** datas[18][1])
-        lucktext = "Give you a higher chance of reducing your accumulated recoil. Current level : " + str(
-            datas[18][2])
-        if datas[18][2] < 20:
-            lucktext += "\nNext cost : " + str(100 * 20 ** datas[18][2])
-        embed.add_field(name="`Reducer`", value=reducertext, inline=True)
-        embed.add_field(name="`Effect`", value=effecttext, inline=True)
-        embed.add_field(name="`Luck`", value=lucktext, inline=True)
-        await interaction.response.send_message(embed=embed)
+            cost = 100 * 2 ** level
+            if money < cost:
+                await interaction.response.send_message("You need {} more coins to upgrade the {}".format(cost-money, ["reducer.", "effect.", "luck."][ind]))
+            else:
+                setdata(player_id, "game", "money, {}".format(upgrade), None, [-cost, 1])
+                #datas[9] -= cost
+                #datas[18][upgrade] += 1
+                await interaction.response.send_message("You spent {} to upgrade the recoilball's {} to level {}.".format(cost, ["reducer", "effect", "luck"][ind], level+1))
+                # db["player_data"+id] = datas
+        else:
+            await interaction.response.send_message("Invalid argument.", ephemeral=True)
 
+
+    @recoilball.autocomplete('upgrade')
+    async def shop_autocomplete(self, interaction: discord.Interaction, current: str,) -> typing.List[app_commands.Choice[str]]:
+        names = ["reducer", "effect", "luck"]
+        short = ["rbred", "rbeffect", "rbluck"]
+        return [
+            app_commands.Choice(name=names[short.index(l)], value=l)
+            for l in short if current.lower() in l.lower()
+        ]
     @app_commands.command(name="stats", description="Flex on your stats with this command") # aliases=["profile", "stat"]
     @app_commands.checks.cooldown(1, 10)
     async def stats(self, interaction):
@@ -1268,28 +1339,31 @@ class Game(commands.Cog):
 
     @app_commands.command(name="give", description="Give money to other players")
     @app_commands.checks.cooldown(1, 3)
-    async def give(self, interaction, recid: typing.Optional[str] = "373707498479288330", money: typing.Optional[int] = 0):
+    async def give(self, interaction, to: discord.User, amount: app_commands.Range[int, 1]):
         """Use this command to give money to other players. \nSyntax : `.give <id or mention> <amount>`
         """
-        id = str(interaction.user.id)
-        try:
-            recid = str(ctx.message.mentions[0].id)
-        except:
-            recid = str(recid)
+        player_id = interaction.user.id
+        money = getdata(player_id, "game", "money")
+        if money is None:
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
+            return
+        money = money[0]
+        recid = to.id
+        language = getdata(recid, "options", "language")
+        if language is None:
+            await interaction.response.send_message("The other player needs to use the `/play` command before receiving money !", ephemeral=True)
+            return
+        if player_id == recid:
+            await interaction.response.send_message("Are you really trying to give yourself money ?")
+            return
         #givedatas = setdata(id, str(interaction.user))
         #receivedatas = setdata(recid, None)
-        if money < 0 and int(id) not in authors:
-            await interaction.response.send_message("You can't steal money !")
-            return
-        if givedatas[9] < money and int(id) not in authors:
-            await interaction.response.send_message("You don't have enough money !")
-            return
-        if id == recid:
-            await interaction.response.send_message("You gave {} coins to {}. But it seems it's yourself.".format(money, recid))
-            return
-        if int(id) not in authors:
-            givedatas[9] -= money
-        receivedatas[9] += money - 1 * int(money > 0)
+        if money < amount:
+            amount = money
+        setdata(player_id, "game", "money", None, [-amount])
+        setdata(recid, "game", "money", None, [amount])
+        #givedatas[9] -= amount
+        #receivedatas[9] += amount - 1
         # db["player_data"+id] = givedatas
         # db["player_data"+recid] = receivedatas
         embed = discord.Embed(title="Money transaction",
@@ -1297,10 +1371,10 @@ class Game(commands.Cog):
                               colour=0x000000, timestamp=datetime.utcnow())
         embed.set_footer(text="Dislate")
         embed.add_field(name="Successful transaction",
-                        value="{} gave {} coins to {}.".format(givedatas[0], money - 1, receivedatas[0]),
+                        value="{} ({}) gave {} coins to {} ({}).".format(player_id, interaction.user, amount, recid, to),
                         inline=True)
-        await interaction.client.get_channel(842381697642922004).send(embed=embed)
-        await interaction.response.send_message("You gave {} coins to {} (with a 1 coin fee).".format(money - 1, recid))
+        await interaction.client.get_channel(1076902638534271016).send(embed=embed)
+        await interaction.response.send_message("You gave {} coins to {}.".format(amount, to))
 
     @app_commands.command(name="balls", description="Show what balls can do") # aliases=["balls"]
     @app_commands.checks.cooldown(1, 10)
@@ -1323,7 +1397,7 @@ class Game(commands.Cog):
                         inline=True)
         embed.add_field(name="Greatball `gb`", value="Adds 15 catch power.\nYou own {} now.".format(gb),
                         inline=True)
-        embed.add_field(name="Ultraball `ub`", value="Adds 25 catch power.\nYou own {} now.".format(ub),
+        embed.add_field(name="Ultraball `ub`", value="Adds 35 catch power.\nYou own {} now.".format(ub),
                         inline=True)
         embed.add_field(name="Masterball `mb`",
                         value="Put the catch power to 99 no matter what except if a rare razz is activated.\nYou own {} now.".format(
@@ -1332,10 +1406,10 @@ class Game(commands.Cog):
                         value="Adds 100 catch power but reduces the catch power by 50 for 100 encounters. During the recoil, every 12.5 recoiled encounters left reduces the catch power by 1. You can upgrade the recoilball using `/rb` to reduce those drawbacks.\nYou own {} now.".format(
                             rb), inline=True)
         embed.add_field(name="Beastball `bb`",
-                        value="Adds 20 catch power and gives 40 bonus catch power if you're catching an Ultra-beast.\nYou own {} now.".format(
+                        value="Adds 20 catch power and gives 60 bonus catch power if you're catching an Ultra-beast.\nYou own {} now.".format(
                             bb), inline=True)
         embed.add_field(name="Quickball `qb`",
-                        value="Adds 15 catch power and has 50% chance to let you throw a Premierball to the same Pokémon. The catch power will then be augmented of 10. You need to have at least a Premierball in your bag to do this.\nYou own {} now.".format(
+                        value="Adds 25 catch power and has 50% chance to let you throw a Premierball to the same Pokémon. The catch power will then be augmented of 10. You need to have at least a Premierball in your bag to do this.\nYou own {} now.".format(
                             qb), inline=True)
         embed.add_field(name="Dreamball `db`",
                         value="Adds 10 catch power and gives 150 bonus catch power if you're catching your dreamed Pokémon. To set your dreamed Pokémon do `/dream`.\nYou own {} now.".format(
