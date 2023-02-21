@@ -100,15 +100,15 @@ def init_lock():
   cursor.execute("""
   CREATE TABLE IF NOT EXISTS locked(
     id INTEGER PRIMARY KEY,
-    lock01 INTEGER DEFAULT 0,
-    lock02 INTEGER DEFAULT 0,
-    lock03 INTEGER DEFAULT 0,
-    lock04 INTEGER DEFAULT 0,
-    lock05 INTEGER DEFAULT 0,
-    lock06 INTEGER DEFAULT 0,
-    lock07 INTEGER DEFAULT 0,
-    lock08 INTEGER DEFAULT 0,
-    lock09 INTEGER DEFAULT 0,
+    lock1 INTEGER DEFAULT 0,
+    lock2 INTEGER DEFAULT 0,
+    lock3 INTEGER DEFAULT 0,
+    lock4 INTEGER DEFAULT 0,
+    lock5 INTEGER DEFAULT 0,
+    lock6 INTEGER DEFAULT 0,
+    lock7 INTEGER DEFAULT 0,
+    lock8 INTEGER DEFAULT 0,
+    lock9 INTEGER DEFAULT 0,
     lock10 INTEGER DEFAULT 0,
     lock11 INTEGER DEFAULT 0,
     lock12 INTEGER DEFAULT 0,
@@ -372,7 +372,7 @@ def getdex(list_name, found_types, stats, sprite, language, number, player_id, s
                     inline=True)
   return embed
 
-def extract(player_id, incomplete_key, dex_number):
+def extract(player_id:int, incomplete_key:str, dex_number:int):
   """
   Read datas from the poke table.
   :param player_id: The Discord id of the player
@@ -392,7 +392,7 @@ def extract(player_id, incomplete_key, dex_number):
     n += chars.index(result[i]) * 36 ** (l - 1 - i)
   return n
 
-def extractlist(player_id, incomplete_key, dex_number):
+def extractlist(player_id:int, incomplete_key:str, dex_number:int):
   """
   Read datas from the poke table.
   :param player_id: The Discord id of the player
@@ -415,7 +415,7 @@ def extractlist(player_id, incomplete_key, dex_number):
     L.append(n)
   return L
 
-def write(datas, dex_number, new_value, add=0):
+def write(datas:str, dex_number:int, new_value:int, add:int=0):
   """
   Write datas for the poke table.
   :param datas: The result of the sql query for the datas you want to write
@@ -442,16 +442,15 @@ def write(datas, dex_number, new_value, add=0):
   while n:
       res = chars[n % 36] + res
       n = n // 36
-
   data[(dex_number-1)%5] = res
   return "'{}'".format("-".join(data))
-def add_pokemon(player_id, dex_number, shininess, updateiv = False):
+def add_pokemon(player_id:int, dex_number:int, shininess:bool, updateiv:bool=False, amount:int=1):
   """
-
   :param player_id: The Discord id of the player
-  :param dex_number: The dex number of the Pokémon to be added
+  :param dex_number: The dex number of the Pokémon to be added minus 1
   :param shininess: Booleean indicating whether the Pokémon is shiny or not
   :param updateiv: Booleen indicating whether the IVs should be updated (if it's a real encounter)
+  :param amount: The amount to be added
   :return: The updated (ivdata, pokedata) tuple
   """
   data = sqlite3.connect("data.db")
@@ -464,8 +463,8 @@ def add_pokemon(player_id, dex_number, shininess, updateiv = False):
     cursor.execute("SELECT pokemon{}, iv{}, cpokemon{} FROM poke WHERE id=={}".format(actualkey, actualkey, actualkey, player_id))
     pokedata, ivdata, cpokedata = cursor.fetchone()
   data.close()
-  pokedata = write(pokedata, dex_number, None, 1)
-  cpokedata = write(cpokedata, dex_number, None, 1)
+  pokedata = write(pokedata, dex_number, None, amount)
+  cpokedata = write(cpokedata, dex_number, None, amount)
   iv = randint(0, 31)
   if updateiv and (iv > extract(player_id, "iv", dex_number)):
     ivdata = write(ivdata, dex_number, iv)
@@ -478,7 +477,28 @@ def add_pokemon(player_id, dex_number, shininess, updateiv = False):
     datas[13+3*int(shininess)][dex_number] += 1
     datas[12] += 1"""
 
+def getboxtext(box:list, page:int, sort:int, language:int):
+  if sort == 1:
+    box.sort(key=lambda row: (row[0]))
+  elif sort == 2:
+    box.sort(key=lambda row: (-row[3]))
+  elif sort == 3:
+    box.sort(key=lambda row: (row[3]))
+  elif sort == 4:
+    box.sort(key=lambda row: (row[2]>0, -row[3]))
+  text = ""
+  for i in range((page-1)*20, min(page*20, len(box))):
+    text += "`{}` `{}` {} | {} {}\n".format(box[i][0] + 1, rarityname[box[i][3]], box[i][1], box[i][2],
+                                              dex[box[i][0]][language].capitalize())
+  return text
 
+def getboxembed(name:str, color:int, language:int, max_pages:int, page:int, box:list, sort:int):
+  text = getboxtext(box, page, sort, language)
+  sortedby = ["Dex order", "Rarity descending", "Rarity ascending", "Rarity descending with shinies first"]
+  embed = discord.Embed(title="{}'s box".format(name), colour=color, timestamp=datetime.utcnow())
+  embed.set_footer(text="Dislate")
+  embed.add_field(name="Page {}/{} ({})".format(1, total, sortedby[sort]), value=text, inline=True)
+  return embed
 def getrarity(number):
   if number in commonpool:
     return 0

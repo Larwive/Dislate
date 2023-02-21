@@ -4,12 +4,11 @@ import typing
 import discord
 from datetime import datetime
 import sqlite3
-from discord import app_commands, PartialEmoji
+from discord import app_commands
 from discord.ext import commands
 from random import randint, choices
 from game_data import *
 from game_func import *
-
 
 class ballbutton(discord.ui.Button):
     def __init__(self, ballname, player_id):
@@ -29,7 +28,6 @@ class ballbutton(discord.ui.Button):
         view.sentball = self.ballname
         view.stop()
 
-
 class Balls(discord.ui.View):
     sentball:str = None
     def __init__(self, balldic:dict, player_id:int, timeout):
@@ -43,33 +41,82 @@ class Balls(discord.ui.View):
 class Box(discord.ui.View):
     page:int = 1
     sort:int = 1
-    def __init__(self, player_id:int, max_pages:int, timeout):
+    def __init__(self, player_id:int, name:str, color:int, language:int, max_pages:int, box:list, timeout):
         super().__init__(timeout=timeout)
+        self.message = None
         self.player_id = player_id
+        self.name = name
+        self.color = color
         self.max_pages = max_pages
+        self.box = box
+        self.language = language
 
     async def disable(self) -> None:
         for item in self.children:
             item.disabled = True
-        await self.message.edit(view=self)
+        await self.message.edit_original_message(view=self)
 
     async def on_timeout(self) -> None:
         await self.disable()
 
     @discord.ui.button(emoji=":arrow_right:")
-    async def next(self, interaction:discord.Interaction, button:discord.ui.Button):
+    async def next(self, interaction:discord.Interaction):
         if interaction.user.id == self.player_id:
             self.page = (self.page+1)%self.max_pages + 1
-
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            self.message.edit_original_response(embed=embed, view=self)
     @discord.ui.button(emoji=":arrow_left:")
-    async def previous(self, interaction:discord.Interaction, button:discord.ui.Button):
+    async def previous(self, interaction:discord.Interaction):
         if interaction.user.id == self.player_id:
             self.page = (self.page-1)%self.max_pages + 1
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            self.message.edit_original_response(embed=embed, view=self)
 
     @discord.ui.button(emoji=":arrows_counterclockwise:")
-    async def newsort(self, interaction:discord.Interaction, button:discord.ui.Button):
+    async def newsort(self, interaction:discord.Interaction):
         if interaction.user.id == self.player_id:
             self.sort = (self.sort+1)%4+1
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            self.message.edit_original_response(embed=embed, view=self)
+
+class Trade(discord.ui.View):
+    success:bool = False
+    confirmed1:bool = False
+    confirmed2:bool = False
+    def __init__(self, id1:int, id2:int, timeout):
+        super().__init__(timeout=timeout)
+        self.message = None
+        self.id1 = id1
+        self.id2 = id2
+
+    async def disable(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        await self.message.edit_original_message(view=self)
+
+    async def on_timeout(self) -> None:
+        await self.disable()
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.red)
+    async def confirm1(self, interaction:discord.Interaction):
+        if interaction.user.id == self.id1:
+            if self.confirmed2:
+                self.success = True
+                await self.disable()
+                return
+            self.confirmed1 = True
+        if interaction.user.id == self.id2:
+            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.red)
+    async def confirm2(self, interaction:discord.Interaction):
+        if interaction.user.id == self.id2:
+            if self.confirmed1:
+                self.success = True
+                await self.disable()
+                return
+            self.confirmed2 = True
+        if interaction.user.id == self.id1:
+            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
 
 class Owner(commands.Cog):
     def __init__(self, bot):
@@ -104,6 +151,8 @@ class Owner(commands.Cog):
     @commands.command(hidden=True)
     @commands.cooldown(1, 1, commands.BucketType.user)
     async def delete(self, ctx, user_id):
+        if ctx.message.author.id not in authors:
+            return
         data = sqlite3.connect("data.db")
         cursor = data.cursor()
         cursor.execute("DELETE FROM options WHERE id==?", user_id)
@@ -117,17 +166,11 @@ class Owner(commands.Cog):
     async def addpoke(self, ctx, target_id, number: typing.Optional[int] = 1, shiny: typing.Optional[bool] = False):
         if ctx.message.author.id in authors:
             try:
-                target_id = str(ctx.message.mentions[0].id)
+                target_id = ctx.message.mentions[0].id
             except:
-                target_id = str(target_id)
-            number -= 1
-            datas = setdata(id, None)
-            datas = add_pokemon(id, number, datas, shiny)
-            # db["player_data"+str(id)] = datas
-            await ctx.send \
-                ("You gave a{} {} to {}.".format(["", " shiny"][int(shiny)], dex[number][0].capitalize(), str(id)))
-
-
+                target_id = target_id
+            add_pokemon(target_id, number-1, shiny, amount=1)
+            await ctx.send("You gave a{} {} to {}.".format(["", " shiny"][shiny], dex[number][0].capitalize(), id))
 
     @commands.command(hidden = True)
     async def se(self, ctx, giveid, dexnumber: typing.Optional[int] = 1, shiny: typing.Optional[bool] = False):
@@ -136,11 +179,8 @@ class Owner(commands.Cog):
                 giveid = ctx.message.mentions[0].id
             except:
                 giveid = str(giveid)
-            #datas = setdata(giveid, None)
             setdata(giveid, "game", "seenabled, sedex, seisshiny", [True, dexnumber, shiny])
-            #datas[21] = [True, dexnumber, shiny]
             await ctx.send("You gave a {}{} special encounter to {}.".format(["", "shiny "][shiny], dex[dexnumber -1][0], giveid))
-            # db["player_data"+giveid] = datas
 
     @commands.command(hidden = True)
     async def clearrb(self, ctx, clearid: typing.Optional[str] = "373707498479288330"):
@@ -149,22 +189,19 @@ class Owner(commands.Cog):
                 clearid = str(ctx.message.mentions[0].id)
             except:
                 clearid = str(clearid)
-            datas = setdata(clearid, None)
-            datas[17] = 0
-            # db["player_data"+clearid] = datas
+            #datas = setdata(clearid, None)
+            #datas[17] = 0
+            setdata(clearid, "game", "recleft", [0])
             await ctx.send("Cleared the rb recoil.")
 
     @commands.command(hidden = True)
-    async def moneymoneymoney(self, ctx):#, giveid: typing.Optional[str] = "373707498479288330"):
+    async def moneymoneymoney(self):#, giveid: typing.Optional[str] = "373707498479288330"):
         """if ctx.message.author.id in authors:
             try:
                 giveid = str(ctx.message.mentions[0].id)
             except:
                 giveid = str(giveid)"""
-
-        #datas = setdata(giveid, None)
         setdata(867494961866997760, "game", "money", None, [100000000])
-            # db["player_data"+giveid] = datas
 
 
 class Main(commands.Cog):
@@ -173,7 +210,7 @@ class Main(commands.Cog):
 
     @app_commands.command(name="dex", description="Show the dex entry for a scpecific Pokémon") #aliases=["dex"]
     @app_commands.checks.cooldown(1, 10)
-    async def d(self, interaction, search:str, shiny:typing.Optional[bool]=False):
+    async def d(self, interaction:discord.Interaction, search:str, shiny:typing.Optional[bool]=False):
         """The dex command show the dex page of a specific Pokémon. Make sure to put the special forms name before the name of the Pokémon.\nExamples : \n`.dex bulbasaur`\n`.dex shiny bulbasaur`
         """
         player_id = interaction.user.id
@@ -266,7 +303,7 @@ class Miscellaneous(commands.Cog):
 
     @app_commands.command()
     @app_commands.checks.cooldown(1, 10)
-    async def option(self, interaction):
+    async def option(self, interaction:discord.Interaction):
         """The option command show the togglables options and the current options' state for you. To toggle an option make sure it is listed in the `.option` command and do `.option *OptionToToggle*`. You can toggle/change multiple options at a time by sparating them with a space.\nExamples : \n`.option`\n`.option v.o.l.`\n`.option color 0x123456`
         """
         language = getdata(interaction.user.id, "options", "language")
@@ -341,7 +378,7 @@ class Miscellaneous(commands.Cog):
 
     @app_commands.command(name="message", description="Use this command to send a message to the owner of the bot. Don't be shy !")
     @app_commands.checks.cooldown(1, 900)
-    async def message(self, interaction, message: str):
+    async def message(self, interaction:discord.Interaction, message: str):
         """Use this command to send a message to the owner of the bot. Don't be shy !
         """
         #try:
@@ -356,7 +393,7 @@ class Miscellaneous(commands.Cog):
 
     @app_commands.command(name="toggle", description="Toggle your options")
     @app_commands.checks.cooldown(1, 5)
-    async def toggle(self, interaction, option:str):
+    async def toggle(self, interaction:discord.Interaction, option:str):
         """Use this command to change your options
         """
         short = ["vol", "privacy", "dexlink", "gamestats", "raritycolor"]
@@ -376,19 +413,14 @@ class Miscellaneous(commands.Cog):
         #    await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
 
     @toggle.autocomplete('option')
-    async def option_autocomplete(self,
-                                interaction: discord.Interaction,
-                                current: str,
-                                ) -> typing.List[app_commands.Choice[str]]:
+    async def option_autocomplete(self, current:str) -> typing.List[app_commands.Choice[str]]:
         names = ["View other languages", "Privacy", "Links in dex", "Game stats", "Rarity color"]
         short = ["vol", "privacy", "dexlink", "gamestats", "raritycolor"]
-        return [
-            app_commands.Choice(name=names[short.index(l)], value=l)
-            for l in short if current.lower() in l.lower()
-        ]
+        return [app_commands.Choice(name=names[short.index(l)], value=l) for l in short if current.lower() in l.lower()]
+
     @app_commands.command(name="setlanguage", description="Set the language of some parts of Dislate")
     @app_commands.checks.cooldown(1, 20)
-    async def lang(self, interaction, lang:str):
+    async def lang(self, interaction:discord.Interaction, lang:str):
         """Use this command to change the language of some parts of the bot. English : `en`\nFrench : `fr`\nGerman : `ge`\nChinese : `ch`\nKorean : `ko`\nJapanese (romaji) : `jr`\nJapanese : `ja`
         """
         if lang.lower() not in languages:
@@ -402,10 +434,7 @@ class Miscellaneous(commands.Cog):
             await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
 
     @lang.autocomplete('lang')
-    async def lang_autocomplete(self,
-                                interaction: discord.Interaction,
-                                current: str,
-                                ) -> typing.List[app_commands.Choice[str]]:
+    async def lang_autocomplete(self, current: str, ) -> typing.List[app_commands.Choice[str]]:
         names = ["English", "Français", "Deutsch", "中文", "한국인", "日本語", "日本語"]
         return [
             app_commands.Choice(name=names[languages.index(l)], value=l)
@@ -414,7 +443,7 @@ class Miscellaneous(commands.Cog):
 
     @app_commands.command(name="calc", description="Use this calculator to compute Python expression")
     @app_commands.checks.cooldown(1, 2)
-    async def calc(self, interaction, expression:str):
+    async def calc(self, interaction:discord.Interaction, expression:str):
         try:
             if eval(expression) % 1 == 0:
                 await interaction.response.send_message(int(eval(expression)))
@@ -442,54 +471,70 @@ class Miscellaneous(commands.Cog):
 class Game(commands.Cog):
     """The game's commands.
     """
-
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="trade", description="Trade Pokémon with other trainers")
     @app_commands.checks.cooldown(1, 10)
-    async def trade(self, interaction, idt:discord.User, args:typing.Optional[str]):
+    async def trade(self, interaction:discord.Interaction, player:discord.User, pokemon1:int, pokemon2:int, shiny1: typing.Optional[bool] = False, shiny2: typing.Optional[bool] = False):
         """Use this command to trade with other players. Syntax : `.trade <id or mention> <"shiny" (optional)> <Dexnumber1> <"shiny" (optional)> <Dexnumber2>`
         """
-        try:
-            idt = str(ctx.message.mentions[0].id)
-        except:
-            idt = str(idt)
-        id = str(interaction.user.id)
+        other_id = player.id
+        player_id = interaction.user.id
         #tradero = setdata(id, None)
         #tradert = setdata(idt, None)
-        shiny1 = args[0].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는",
-                                         "iro chigai", "色違い"]
-        if shiny1:
-            shiny2 = args[2].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光",
-                                             "빛나는", "iro chigai", "色違い"]
+        name1 = getdata(player_id, "game", "name")
+        if name1 is None:
+            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            return
+        name2 = getdata(other_id, "game", "name")
+        if name2 is None:
+            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            return
+        #shiny1 = args[0].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
+        """if shiny1:
+            #shiny2 = args[2].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
             poke1 = int(args[1])
             if shiny2:
                 poke2 = int(args[3])
             else:
                 poke2 = int(args[2])
         else:
-            shiny2 = args[1].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光",
-                                             "빛나는", "iro chigai", "色違い"]
+            #shiny2 = args[1].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
             poke1 = int(args[0])
             if shiny2:
                 poke2 = int(args[2])
             else:
-                poke2 = int(args[1])
-        if tradero[7][poke1 - 1][int(shiny1)] < 1:
+                poke2 = int(args[1])"""
+        pokeamount, = extract(player_id, "poke{}".format(["mon", "shi"][shiny1]), pokemon1)
+        if pokeamount < 1:
             await interaction.response.send_message("You don't have the Pokémon you're proposing.", ephemeral=True)
             return
-        if tradert[7][poke2 - 1][int(shiny2)] < 1:
+        pokeamount, = extract(other_id, "poke{}".format(["mon", "shi"][shiny2]), pokemon2)
+        if pokeamount < 1:
             await interaction.response.send_message("The other player doesn't have the Pokémon you want.", ephemeral=True)
             return
 
-        def check1(m):
+        """def check1(m):
             return str(m.author.id) == id and m.channel == ctx.message.channel and m.content.lower() == "confirm"
 
         def check2(m):
-            return str(m.author.id) == idt and m.channel == ctx.message.channel and m.content.lower() == "confirm"
-
-        try:
+            return str(m.author.id) == idt and m.channel == ctx.message.channel and m.content.lower() == "confirm"""
+        embed = discord.Embed(title="Trade",
+                              description="||I know you clicked on this so give the owner 10 coins now.||",
+                              colour=0x000000, timestamp=datetime.utcnow())
+        embed.set_footer(text="Dislate")
+        embed.add_field(name="Trade offer",
+                        value="{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(name1[0],
+                                                                                      ["", "shiny "][shiny1],
+                                                                                      dex[pokemon1 - 1][0], name2[0],
+                                                                                      ["", "shiny "][shiny2],
+                                                                                      dex[pokemon2 - 1][0]), inline=True)
+        message = await interaction.response.send_message(embed=embed)
+        view = Trade(player_id, other_id, 20)
+        view.message = message
+        await view.wait()
+        """try:
             await interaction.response.send_message(
                 "<@{}> Type **`confirm`** to confirm this trade :\n Your **{}{}** for his/her **{}{}**.".format(id, ["", "shiny "][int(shiny1)], dex[poke1 - 1][0], ["", "shiny "][int(shiny2)], dex[poke2 - 1][0]))
             await interaction.client.wait_for("message", check=check1, timeout=20.0)
@@ -500,24 +545,21 @@ class Game(commands.Cog):
                     "<@{}> Type **`confirm`** to confirm this trade :\n Your **{}{}** for his/her **{}{}**.".format(idt, ["", "shiny "][int(shiny2)], dex[poke2 - 1][0], ["", "shiny "][int(shiny1)], dex[poke1 - 1][0]))
             await bot.wait_for("message", check=check2, timeout=20.0)
         except asyncio.TimeoutError:
-            return await interaction.response.send_message("Timeout. Trade canceled.", ephemeral=True)
-        tradero[7][poke1 - 1][int(shiny1)] -= 1
-        tradert[7][poke2 - 1][int(shiny2)] -= 1
-        tradero[7][poke2 - 1][int(shiny2)] += 1
-        tradert[7][poke1 - 1][int(shiny1)] += 1
-        embed = discord.Embed(title="Trade",
-                                  description="||I know you clicked on this so give the owner 10 coins now.||",
-                                  colour=0x000000, timestamp=datetime.utcnow())
+            return await interaction.response.send_message("Timeout. Trade canceled.", ephemeral=True)"""
+        add_pokemon(player_id, pokemon1, shiny1, amount=-1)
+        add_pokemon(other_id, pokemon2, shiny2, amount=-1)
+        add_pokemon(player_id, pokemon2, shiny2, amount=1)
+        add_pokemon(other_id, pokemon1, shiny1, amount=1)
+        #tradero[7][poke1 - 1][int(shiny1)] -= 1
+        #tradert[7][poke2 - 1][int(shiny2)] -= 1
+        #tradero[7][poke2 - 1][int(shiny2)] += 1
+        #tradert[7][poke1 - 1][int(shiny1)] += 1
+        embed = discord.Embed(title="Trade", colour=0x000000, timestamp=datetime.utcnow())
         embed.set_footer(text="Dislate")
         embed.add_field(name="Successful trade",
-                            value="{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(tradero[0],
-                                                                                          ["", "shiny "][int(shiny1)],
-                                                                                          dex[poke1 - 1][0], tradert[0],
-                                                                                          ["", "shiny "][int(shiny2)],
-                                                                                          dex[poke2 - 1][0]),
-                            inline=True)
+                            value="{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(name1[0], ["", "shiny "][shiny1], dex[pokemon1 - 1][0], name2[0], ["", "shiny "][shiny2], dex[pokemon2 - 1][0]), inline=True)
         await interaction.client.get_channel(842381061056233553).send(embed=embed)
-        await interaction.response.send("You traded succesfully.")
+        await interaction.edit_original_response(content="You succesfully traded.", embed=embed)
 
     @app_commands.command(name="encounter", description="Encounter a Pokémon")
     @app_commands.checks.cooldown(1, 2)
@@ -776,8 +818,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="box", description="Show your boxes") # aliases=["pc"]
     @app_commands.checks.cooldown(1, 5)
-    async def box(self, interaction, page: typing.Optional[int] = 1, sort: typing.Optional[int] = 1,
-                  user: discord.User = None):
+    async def box(self, interaction:discord.Interaction, user: discord.User = None, page: typing.Optional[int] = 1):
         """The box command show your owned Pokémon. The default box page is the first one with the national dex number order. You can choose to see a certain page or with a certain sorting order. You must give the page number if you specify the sorting order.\nSyntax : `.box <page> <sorting order number>`\nSorting order : \n`1 (Default)` : The national dex number order.\n`2` : The descending rarity order.\n`3` : The ascending rarity order.\n`4` : The descending order with shinies first.\nExamples : \n`.box`\n`.box 1 1`\n`.box 2 4`
         """
         # sort = 1:Ordre pokédex, 2:Ordre rareté descendant, 3:Ordre rareté ascendant, 4:Ordre rareté descendant avec shinys en premiers
@@ -785,35 +826,39 @@ class Game(commands.Cog):
             user_id = user.id
         else:
             user_id = interaction.user.id
-        #datas = setdata(id, None)
-        #options = getoption(id)
-        options = getdata(user_id, "options", "color, language, privacy")
+        options = getdata(user_id, "options", "color, language, privacy, name")
         if options is None:
             await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
             return
 
-        sortedbox, text, total, color, language, privacy = 0, "", 0, options[0], options[1], options[2]
+        sortedbox, total, color, language, privacy, name = 0, 0, options[0], options[1], options[2], options[3]
         if interaction.user.id != user_id and privacy:
             await interaction.response.send_message("You can't see this player's box.")
             return
-        if sort > 4:
-            sort = 4
+
         box = []
         for i in range(1, len(dex), 5):
             pack = extractlist(user_id, "pokemon", i)
             spack = extractlist(user_id, "pokeshi", i)
             #scanning = datas[7][i]
             for j in range(5):
-                if pack[j] > 0:
+                if pack[j] > 0 or spack[j]:
                     rarity = getrarity(i+j+1)
-                    box.append([i+j, pack[j], rarity])
-                if spack[j] > 0:
-                    box.append([i + j, pack[j], 12])
-        view = Box(user_id, len(box)//20, 20)
-        message = await interaction.response.send_message()
+                    box.append([i+j, pack[j], spack[j], rarity])
+
+        view = Box(user_id, name, color, language, len(box)//20, box, 20)
+        max_pages = len(box)//20+1
+        if page>max_pages:
+            page = max_pages
+
+        embed = getboxembed(name, color, language, max_pages, page, box, 1)
+        message = await interaction.response.send_message(embed=embed)
         view.message = message
+        await view.wait()
+
                     #total += 1
         #total = int((total - 1) / 20) + 1
+        """
         try:
             if sort == 1:
                 for i in range(len(dex)):
@@ -866,10 +911,7 @@ class Game(commands.Cog):
                             text += "`{}` `{}` {} | {} {}\n".format(i+1, rarity, scanning[0], scanning[1], dex[i][language].capitalize())
         except:
             text = "Invalid page number."
-        embed = discord.Embed(title=datas[0] + "'s box", colour=color, timestamp=datetime.utcnow())
-        embed.set_footer(text="Dislate")
-        embed.add_field(name="Page {}/{}".format(page, total), value=text, inline=True)
-        await interaction.response.send_message(embed=embed)
+        """
 
     @app_commands.command(name="spawnrates", description="Show your current Pokémon spawn rates")
     @app_commands.checks.cooldown(1, 5)
@@ -898,7 +940,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="rename", description="Change your game name") # aliases=["nickname"]
     @app_commands.checks.cooldown(1, 900)
-    async def rename(self, interaction, name:str):
+    async def rename(self, interaction:discord.Interaction, name:str):
         """This command to rename yourself in the game.\nsSyntax : `/rename <newname>`
         """
         player_id = interaction.user.id
@@ -907,7 +949,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="shop", description="Visit the shop to buy items") # aliases=["sh", "shop"]
     @app_commands.checks.cooldown(1, 10)
-    async def shop(self, interaction, item: typing.Optional[str] = None, amount: app_commands.Range[int, 1]=1):
+    async def shop(self, interaction:discord.Interaction, item: typing.Optional[str] = None, amount: app_commands.Range[int, 1]=1):
         """Use this command to see the shop and buy things in it.\nSyntax : `.s <itemnumber> <amount>`
         """
         player_id = interaction.user.id
@@ -956,10 +998,7 @@ class Game(commands.Cog):
     async def shop_autocomplete(self, interaction: discord.Interaction, current: str,) -> typing.List[app_commands.Choice[str]]:
         names = ["Pokéball", "Greatball", "Ultraball", "Masterball", "Recoilball", "Beastball", "Quickball", "Dreamball", "Cloneball", "Fifty-fifty ball", "Amulet coin", "Fake razz", "Rare razz"]
         short = ["pb", "gb", "ub", "mb", "rb", "bb", "qb", "db", "cb", "fb", "amuletcoin", "frazz", "rrazz"]
-        return [
-            app_commands.Choice(name=names[short.index(l)], value=l)
-            for l in short if current.lower() in l.lower()
-        ]
+        return [app_commands.Choice(name=names[short.index(l)], value=l) for l in short if current.lower() in l.lower()]
 
     @app_commands.command(name="inventory", description="Show your inventory") # aliases=["item", "items", "bag", "inventory"]
     @app_commands.checks.cooldown(1, 10)
@@ -986,48 +1025,70 @@ class Game(commands.Cog):
         await interaction.response.send_message(embed=embed)
     @app_commands.command(name="release", description="Release your Pokémon") # aliases=["rls"]
     @app_commands.checks.cooldown(1, 7)
-    async def release(self, interaction, releasing: typing.Optional[str] = "-1", amount: typing.Optional[int] = 1,
+    async def release(self, interaction:discord.Interaction, releasing: typing.Optional[str] = "-1", amount: typing.Optional[int] = 1,
                       shiny: typing.Optional[bool] = False):
         """Use this command to release your Pokémon.\nSyntax : `.rls d` to release all your duplicates except Legendary, Mythical, Ultrabest and God ones.\n`.rls <dexnumber> <amount>
         """
-        id = str(interaction.user.id)
+        player_id = interaction.user.id
         #datas = setdata(id, str(interaction.user))
-        locked = datas[20]
-        try:
-            releasing = int(releasing)
-        except:
-            pass
+        #locked = datas[20]
+        locked = getdata(player_id, "locked", "*")
+        if locked is None:
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
+            return
+        locked = list(locked)
+
         if releasing == "d":
+            box = []
+            for i in range(1, len(dex), 5):
+                pack = extractlist(player_id, "pokemon", i)
+
+                # scanning = datas[7][i]
+                for j in range(5):
+                    if pack[j] > 0:
+                        rarity = getrarity(i + j + 1)
+                        if rarity<6:
+                            box.append([i + j, pack[j], rarity])
             dupes = [0, 0, 0, 0, 0, 0]
             gotmoney = 0
-            for i in range(len(datas[7])):
-                if i in locked:
+            for i in range(len(box)):
+                if box[i][0] in locked:
                     continue
-                release = datas[7][i]
-                if release[0] > 0:
-                    rarity = getrarity(i + 1)
-                    if rarity > 5:
-                        continue
-                    dupes[rarity] += release[0] - 1
-                    gotmoney += (release[0] - 1) * releasemoney[rarity]
-                    release[0] = 1
-            datas[9] += gotmoney
-            datas[14] += gotmoney
+
+                rarity = box[i][2]
+                if rarity > 5:
+                    continue
+                dupes[rarity] += box[i][1] - 1
+                gotmoney += (box[i][1] - 1) * releasemoney[rarity]
+                add_pokemon(player_id, box[i][0]-1, False, False, -box[i][1] + 1)
+                #release[0] = 1
+            setdata(player_id, "game", "money, totalmoney", None, [gotmoney, gotmoney])
+            #datas[9] += gotmoney
+            #datas[14] += gotmoney
             # db["player_data"+id] = datas
             await interaction.response.send_message(
                 "You got {} coins by releasing\n{} common\n{} uncommon\n{} rare\n{} rarer\n{} very rare\n{} pseudo legendary".format(
                     gotmoney, dupes[0], dupes[1], dupes[2], dupes[3], dupes[4], dupes[5]))
             return
+        try:
+            releasing = int(releasing)
+        except:
+            await interaction.response.send_message("Invalid argument : `d` to release duplicates, dex number to release a specific Pokémon", ephemeral=True)
+            return
         if releasing > 0:
-            if datas[7][releasing - 1][int(shiny)] - amount < 0:
-                await interaction.response.send_message("You can't release something you don't own.", ephemeral=True)
+            if shiny:
+                pokeamount = extract(player_id, "pokeshi", releasing)
+            else:
+                pokeamount = extract(player_id, "pokemon", releasing)
+            if pokeamount - amount < 0:
+                await interaction.response.send_message("You can't release Pokémon you don't own.", ephemeral=True)
                 return
-            language = getlanguage(id)
-            datas[7][releasing - 1][int(shiny)] -= amount
+            language, = getdata(player_id, "options", "language")
+            #datas[7][releasing - 1][int(shiny)] -= amount
+            add_pokemon(player_id, releasing-1, shiny, updateiv=False, amount=-amount)
             rarity = getrarity(releasing)
             gotmoney = amount * releasemoney[rarity] * 1000 ** int(shiny)
-            datas[9] += gotmoney
-            datas[14] += gotmoney
+            setdata(player_id, "game", "money, totalmoney", None, [gotmoney, gotmoney])
             # db["player_data"+id] = datas
             released = dex[releasing - 1][language].capitalize()
             if shiny:
@@ -1036,7 +1097,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="fakerazz", description="Activate the effect of the fake razz")
     @app_commands.checks.cooldown(1, 15)
-    async def fakerazz(self, interaction, amount: app_commands.Range[int, 0]=0):
+    async def fakerazz(self, interaction:discord.Interaction, amount: app_commands.Range[int, 0]=0):
         """Use this command to activate the fake razz's effect. Fake razz divides by 2 the Legendary, Mythical, Ultrabeast and God spawn rates but gives you a 20 catch power bonus for 50 encounters each.\nSyntax : `.fr <amount>`
         """
         player_id = interaction.user.id
@@ -1067,7 +1128,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="rarerazz", description="Activate your rare razz") # aliases=["rr"]
     @app_commands.checks.cooldown(1, 15)
-    async def rarerazz(self, interaction, amount: app_commands.Range[int, 0]=0):
+    async def rarerazz(self, interaction:discord.Interaction, amount: app_commands.Range[int, 0]=0):
         """Use this command to activate the rare razz's effect. Rare razz doubles Legendary, Mythical, Ultrabeast and God spawn rates but gives you a -20 catch power malus for 50 encounters each.\nSyntax : `.rr <amount>`
         """
         player_id = interaction.user.id
@@ -1099,7 +1160,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="luckymachine", description="Activate the lucky machine") #aliases=["luckymachine"]
     @app_commands.checks.cooldown(1, 15)
-    async def luckymachine(self, interaction, amount: app_commands.Range[int, 0]=0):
+    async def luckymachine(self, interaction:discord.Interaction, amount: app_commands.Range[int, 0]=0):
         """Use this command to activate the lucky machine for a certain amount of encounters. It triples the Legendary, Mythical, Ultrabeast and God spawn rates but costs 2500 coins each encounter.\nSyntax : `.lm <amount>`
         """
         player_id = interaction.user.id
@@ -1122,7 +1183,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="recoilball", description="See and upgrade your recoil ball") #aliases=["rb"]
     @app_commands.checks.cooldown(1, 5)
-    async def recoilball(self, interaction, upgrade: typing.Optional[str] = None):
+    async def recoilball(self, interaction:discord.Interaction, upgrade: typing.Optional[str] = None):
         """Upgrade your recoilball here.\nReducer : Reduces the number of recoiled encounters a recoilball will give.\nEffect : Reduces the reduction of catch power due to recoil.\nLuck : Give you a higher chance of reducing your accumulated recoil when catching a Pokémon.\nSyntax : `.rb <reducer/effect/luck>`
         """
         player_id = interaction.user.id
@@ -1175,7 +1236,7 @@ class Game(commands.Cog):
 
 
     @recoilball.autocomplete('upgrade')
-    async def shop_autocomplete(self, interaction: discord.Interaction, current: str,) -> typing.List[app_commands.Choice[str]]:
+    async def shop_autocomplete(self, current: str,) -> typing.List[app_commands.Choice[str]]:
         names = ["reducer", "effect", "luck"]
         short = ["rbred", "rbeffect", "rbluck"]
         return [
@@ -1215,43 +1276,57 @@ class Game(commands.Cog):
 
     @app_commands.command(name="lock", description="Use this command to lock Pokémon from being released")
     @app_commands.checks.cooldown(1, 10)
-    async def lock(self, interaction, locking: typing.Optional[int] = 0):
+    async def lock(self, interaction:discord.Interaction, locking: typing.Optional[int] = 0):
         """Use this command to lock up to 50 Pokémon from being released by `.rls d`. Legendary, Mythical, Ultrabeast, God and Egg rarities are locked by default. \nSyntax : `.lock <dexnumber>`
         """
-        id = str(interaction.user.id)
+        player_id = interaction.user.id
         #datas = setdata(id, str(interaction.user))
-        locked = datas[20]
-        language = getlanguage(id)
+
+        language = getdata(player_id, "options", "language")
+        if language is None:
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
+            return
+        language = language[0]
+        locked = list(getdata(player_id, "locked", "*"))
+        locked = [i for i in locked if i>0]
         if locking > 0:
             try:
                 locking -= 1
                 if locking in locked:
                     locked.remove(locking)
+                    locked = locked+[0]*(50-len(locked))
+                    setdata(player_id, "locked", lockstr, locked)
                     await interaction.response.send_message("You unlocked {} from release.".format(dex[locking][language].capitalize()))
+                    return
                 else:
                     if len(locked) > 49:
                         await interaction.response.send_message("You already locked 50 Pokémon from release.")
                         return
                     locked.append(locking)
                     locked.sort()
+                    locked = locked + [0] * (50 - len(locked))
+                    setdata(player_id, "locked", lockstr, locked)
                     await interaction.response.send_message(
                         "You added {} to your locked Pokémon.".format(dex[locking][language].capitalize()))
-                datas[20] = locked
+                    return
+
                 # db["player_data"+id] = datas
             except:
                 await interaction.response.send_message("Invalid Pokémon number.")
                 return
-        if len(locked) == 0:
-            await interaction.response.send_message("You can see your locked Pokémon here.")
-            return
+        #if len(locked) == 0:
+        #    await interaction.response.send_message("You can see your locked Pokémon here.")
+        #    return
         text = "Locked Pokémon :\n"
         for i in locked:
+            if not locked[i]:
+                break
             text += "`{} : {}` {}\n".format(i + 1, rarityname[getrarity(i + 1)], dex[i][language].capitalize())
         await interaction.response.send_message.send(text)
 
     @app_commands.command(name="partner", description="Set your partner Pokémon")
     @app_commands.checks.cooldown(1, 10)
-    async def partner(self, interaction, new_partner: typing.Optional[int] = 0):
+    async def partner(self, interaction:discord.Interaction, new_partner: typing.Optional[int] = 0):
         """Set your partner Pokémon to get the clone ball boost and some other advantages. \nSyntax : `/partner <dexnumber>`
         """
         player_id = interaction.user.id
@@ -1283,7 +1358,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="dream", description="Set your dreamed Pokémon")
     @app_commands.checks.cooldown(1, 10)
-    async def dream(self, interaction, new_dream: typing.Optional[int] = 0):
+    async def dream(self, interaction:discord.Interaction, new_dream: typing.Optional[int] = 0):
         """Set your dreamed Pokémon here to get the dream ball boost. \nSyntax : `.dream <dexnumber>`
         """
         player_id = interaction.user.id
@@ -1339,7 +1414,7 @@ class Game(commands.Cog):
 
     @app_commands.command(name="give", description="Give money to other players")
     @app_commands.checks.cooldown(1, 3)
-    async def give(self, interaction, to: discord.User, amount: app_commands.Range[int, 1]):
+    async def give(self, interaction:discord.Interaction, to: discord.User, amount: app_commands.Range[int, 1]):
         """Use this command to give money to other players. \nSyntax : `.give <id or mention> <amount>`
         """
         player_id = interaction.user.id
