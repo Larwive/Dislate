@@ -4,7 +4,7 @@ import typing
 import discord
 from datetime import datetime
 import sqlite3
-from discord import app_commands, PartialEmoji
+from discord import app_commands
 from discord.ext import commands
 from random import randint, choices
 from game_data import *
@@ -40,17 +40,54 @@ class Balls(discord.ui.View):
 
 class Box(discord.ui.View):
     page:int = 1
-    sort:int = 1
-    def __init__(self, player_id:int, name:str, color:int, language:int, max_pages:int, box:list, timeout):
-        print("hh")
+    sort:int = 0
+    def __init__(self, player_id:int, name:str, color:int, language:int, max_pages:int, page:int, box:list, timeout):
         self.player_id = player_id
         self.name = name
         self.color = color
         self.max_pages = max_pages
+        self.page=page-1
         self.box = box
         self.language = language
-        print("init")
         super().__init__(timeout=timeout)
+
+    async def on_timeout(self) -> None:
+        self.stop()
+
+    @discord.ui.button(label="previous")
+    async def previous(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.page = (self.page-1)%self.max_pages
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="next")
+    async def next(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.page = (self.page+1)%self.max_pages
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="sort")
+    async def newsort(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.player_id:
+            self.sort = (self.sort+1)%4
+            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
+            await interaction.response.edit_message(embed=embed, view=self)
+"""
+class Trade(discord.ui.View):
+    success:bool = False
+    confirmed1:bool = False
+    confirmed2:bool = False
+    name1:str = None
+    name2:str = None
+    def __init__(self, id1:int, id2:int, name1:str, name2:str, timeout):
+        super().__init__(timeout=timeout)
+        self.message = None
+        self.id1 = id1
+        self.id2 = id2
+        self.name1 = name1
+        self.name2 = name2
 
     async def disable(self) -> None:
         for item in self.children:
@@ -60,65 +97,78 @@ class Box(discord.ui.View):
     async def on_timeout(self) -> None:
         await self.disable()
 
-    @discord.ui.button(label=":arrow_left:")
-    async def previous(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.id == self.player_id:
-            self.page = (self.page-1)%self.max_pages + 1
-            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
-            self.message.edit_original_response(embed=embed, view=self)
+    @discord.ui.button(label="Confirm ({})".format(name1), style=discord.ButtonStyle.red)
+    async def confirm1(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.id1:
+            if self.confirmed2:
+                self.success = True
+                self.stop()
+                #await self.disable()
+                return
+            self.confirmed1 = True
+            button.style = discord.ButtonStyle.success
+            button.label = "Confirmed"
+            button.disabled = True
+            await interaction.response.edit_message(view=self)
+        if interaction.user.id == self.id2:
+            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
 
-    @discord.ui.button(label=":arrow_right:")
-    async def next(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.id == self.player_id:
-            self.page = (self.page+1)%self.max_pages + 1
-            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
-            self.message.edit_original_response(embed=embed, view=self)
+    @discord.ui.button(label="Confirm ({})".format(name2), style=discord.ButtonStyle.red)
+    async def confirm2(self, interaction:discord.Interaction, button:discord.ui.Button):
+        if interaction.user.id == self.id2:
+            if self.confirmed1:
+                self.success = True
+                self.stop()
+                #await self.disable()
+                return
+            self.confirmed2 = True
+            button.style = discord.ButtonStyle.success
+            button.label = "Confirmed"
+            button.disabled = True
+            await interaction.response.edit_message(view=self)
+        if interaction.user.id == self.id1:
+            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)"""
 
-    @discord.ui.button(label=":arrows_counterclockwise:")
-    async def newsort(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.id == self.player_id:
-            self.sort = (self.sort+1)%4+1
-            embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
-            self.message.edit_original_response(embed=embed, view=self)
+class TradeButton(discord.ui.Button):
+    def __init__(self, id1:int, id2:int, name:str, first:bool):
+        self.id1 = id1
+        self.id2 = id2
+        self.first = first
+        super().__init__(label="Confirm ({})".format(name), style=discord.ButtonStyle.red)
+
+    async def callback(self, interaction: discord.Interaction):
+        assert self.view is not None
+        assert interaction.user.id in [self.id1, self.id2]
+        view:Trade = self.view
+        if (interaction.user.id == self.id2 and not self.first) or (interaction.user.id == self.id1 and self.first):
+            if view.confirmed1 and not self.first:
+                view.success = True
+                view.stop()
+                return
+            elif view.confirmed2 and self.first:
+                view.success = True
+                view.stop()
+                return
+            if self.first:
+                view.confirmed1 = True
+            else:
+                view.confirmed2 = True
+            self.style = discord.ButtonStyle.success
+            self.label = "Confirmed"
+            self.disabled = True
+            await interaction.response.edit_message(view=view)
+            return
+        await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
+
 
 class Trade(discord.ui.View):
     success:bool = False
     confirmed1:bool = False
     confirmed2:bool = False
-    def __init__(self, id1:int, id2:int, timeout):
+    def __init__(self, id1:int, id2:int, name1:str, name2:str, timeout):
         super().__init__(timeout=timeout)
-        self.message = None
-        self.id1 = id1
-        self.id2 = id2
-
-    async def disable(self) -> None:
-        for item in self.children:
-            item.disabled = True
-        await self.message.edit_original_message(view=self)
-
-    async def on_timeout(self) -> None:
-        await self.disable()
-
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.red)
-    async def confirm1(self, interaction:discord.Interaction):
-        if interaction.user.id == self.id1:
-            if self.confirmed2:
-                self.success = True
-                await self.disable()
-                return
-            self.confirmed1 = True
-        if interaction.user.id == self.id2:
-            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.red)
-    async def confirm2(self, interaction:discord.Interaction):
-        if interaction.user.id == self.id2:
-            if self.confirmed1:
-                self.success = True
-                await self.disable()
-                return
-            self.confirmed2 = True
-        if interaction.user.id == self.id1:
-            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
+        self.add_item(TradeButton(id1, id2, name1, True))
+        self.add_item(TradeButton(id1, id2, name2, False))
 
 class Owner(commands.Cog):
     def __init__(self, bot):
@@ -283,7 +333,7 @@ class Main(commands.Cog):
                 sprite = "http://play.pokemonshowdown.com/sprites/ani-shiny/"+dex[number][0].replace(" ","_")+".gif"
             else:
                 sprite = "http://play.pokemonshowdown.com/sprites/ani/"+dex[number][0].replace(". ","")+".gif"
-        embed = getdex(list_name, found_types, stats, sprite, language, number, player_id, shiny)
+        embed = getdex(list_name, found_types, stats, sprite, language, number+1, player_id, shiny)
         await interaction.response.send_message(embed = embed)
 
     @app_commands.command(name="typechart", description="Show the Pokémon typechart")
@@ -481,61 +531,55 @@ class Game(commands.Cog):
     async def trade(self, interaction:discord.Interaction, player:discord.User, pokemon1:int, pokemon2:int, shiny1: typing.Optional[bool] = False, shiny2: typing.Optional[bool] = False):
         """Use this command to trade with other players. Syntax : `.trade <id or mention> <"shiny" (optional)> <Dexnumber1> <"shiny" (optional)> <Dexnumber2>`
         """
+        print("start")
         other_id = player.id
         player_id = interaction.user.id
+        print(other_id, player_id)
         #tradero = setdata(id, None)
         #tradert = setdata(idt, None)
-        name1 = getdata(player_id, "game", "name")
+        name1 = getdata(player_id, "options", "name")
+        print(name1)
         if name1 is None:
-            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
-        name2 = getdata(other_id, "game", "name")
+        print(5)
+        name2 = getdata(other_id, "options", "name")
+        print(name2)
         if name2 is None:
-            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
         #shiny1 = args[0].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
-        """if shiny1:
-            #shiny2 = args[2].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
-            poke1 = int(args[1])
-            if shiny2:
-                poke2 = int(args[3])
-            else:
-                poke2 = int(args[2])
-        else:
-            #shiny2 = args[1].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
-            poke1 = int(args[0])
-            if shiny2:
-                poke2 = int(args[2])
-            else:
-                poke2 = int(args[1])"""
-        pokeamount, = extract(player_id, "poke{}".format(["mon", "shi"][shiny1]), pokemon1)
+
+        print("poke{}".format(["mon", "shi"][shiny1]))
+        pokeamount = extract(player_id, "poke{}".format(["mon", "shi"][shiny1]), pokemon1)
+        print(pokeamount)
         if pokeamount < 1:
             await interaction.response.send_message("You don't have the Pokémon you're proposing.", ephemeral=True)
             return
-        pokeamount, = extract(other_id, "poke{}".format(["mon", "shi"][shiny2]), pokemon2)
+        print("poke{}".format(["mon", "shi"][shiny2]))
+        pokeamount = extract(other_id, "poke{}".format(["mon", "shi"][shiny2]), pokemon2)
         if pokeamount < 1:
             await interaction.response.send_message("The other player doesn't have the Pokémon you want.", ephemeral=True)
             return
-
+        print("amount passed")
         """def check1(m):
             return str(m.author.id) == id and m.channel == ctx.message.channel and m.content.lower() == "confirm"
 
         def check2(m):
             return str(m.author.id) == idt and m.channel == ctx.message.channel and m.content.lower() == "confirm"""
+        text = "{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(name1[0], ["", "shiny "][shiny1], dex[pokemon1 - 1][0], name2[0], ["", "shiny "][shiny2], dex[pokemon2 - 1][0])
         embed = discord.Embed(title="Trade",
                               description="||I know you clicked on this so give the owner 10 coins now.||",
                               colour=0x000000, timestamp=datetime.utcnow())
         embed.set_footer(text="Dislate")
         embed.add_field(name="Trade offer",
-                        value="{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(name1[0],
-                                                                                      ["", "shiny "][shiny1],
-                                                                                      dex[pokemon1 - 1][0], name2[0],
-                                                                                      ["", "shiny "][shiny2],
-                                                                                      dex[pokemon2 - 1][0]), inline=True)
-        message = await interaction.response.send_message(embed=embed)
-        view = Trade(player_id, other_id, 20)
-        view.message = message
+                        value=text, inline=True)
+        view = Trade(player_id, other_id, name1[0], name2[0], 20)
+        await interaction.response.send_message(embed=embed, view=view)
         await view.wait()
+        if not view.success:
+            await interaction.edit_original_response(content="Trade canceled.\n"+text)
+            return
         """try:
             await interaction.response.send_message(
                 "<@{}> Type **`confirm`** to confirm this trade :\n Your **{}{}** for his/her **{}{}**.".format(id, ["", "shiny "][int(shiny1)], dex[poke1 - 1][0], ["", "shiny "][int(shiny2)], dex[poke2 - 1][0]))
@@ -560,8 +604,8 @@ class Game(commands.Cog):
         embed.set_footer(text="Dislate")
         embed.add_field(name="Successful trade",
                             value="{}'s **{}{}** :left_right_arrow: {}'s **{}{}**".format(name1[0], ["", "shiny "][shiny1], dex[pokemon1 - 1][0], name2[0], ["", "shiny "][shiny2], dex[pokemon2 - 1][0]), inline=True)
-        await interaction.client.get_channel(842381061056233553).send(embed=embed)
-        await interaction.edit_original_response(content="You succesfully traded.", embed=embed)
+        await interaction.client.get_channel(1078020371271389214).send(embed=embed)
+        await interaction.edit_original_response(content="You succesfully traded.", embed=embed, view=None)
 
     @app_commands.command(name="encounter", description="Encounter a Pokémon")
     @app_commands.checks.cooldown(1, 2)
@@ -652,10 +696,10 @@ class Game(commands.Cog):
             await interaction.client.get_channel(1076902678099140758).send(embed=rarespawns)
 
         if shiny:
-            cshiny = extract(player_id, "pokeshi", spawnnumber+1)
+            cshiny = extract(player_id, "cpokeshi", spawnnumber+1)
             text = "Rarity : 1/8192\nCaught : {}".format(cshiny)
         else:
-            normal = extract(player_id, "pokemon", spawnnumber+1)
+            normal = extract(player_id, "cpokemon", spawnnumber+1)
             text = "Rarity : {}\nCaught : {}".format(Rarity, normal)
         balldic = {}
         if pb > 0:
@@ -704,10 +748,8 @@ class Game(commands.Cog):
             embed.set_image(
                 url="http://play.pokemonshowdown.com/sprites/ani/{}.gif".format(spawn[0].replace(". ", "")))
         view = Balls(balldic, player_id, timeout=20)
-        encounter = await interaction.response.send_message(embed=embed, view=view)
-        view.message = encounter
+        await interaction.response.send_message(embed=embed, view=view)
         await view.wait()
-        #await view.disable_all_items()
 
         """
         try:
@@ -734,13 +776,13 @@ class Game(commands.Cog):
         if fakee:
             iscaught += 20
         if raree:
-            iscaught -= 20
+            iscaught -= 10
         change_game["recleft"] = max(recleft - 1, 0)
         recleft = max(recleft - 1, 0)
         #datas[17] = max(datas[17] - 1, 0)
         if sentball == "rb":
             add_game["recleft"] = 100-rbred
-            recleft = 100-rbred
+            recleft = 100-rbred+recleft
             #datas[17] += 100 - datas[18][0]
         add_game[sentball] = -1#-fakee-raree
         add_game["{}used".format(sentball)] = 1
@@ -768,14 +810,14 @@ class Game(commands.Cog):
             if state == 2: # Si une honor ball a été lancée et la capture est réussie
                 state = 3
             gotmoney = randint([99, 120, 300, 600, 1300, 500, 10000, 20000, 10000, 200000][rarity],
-                                [120, 200, 400, 800, 1800, 750, 15000, 25000, 100000, 2000000][rarity]) * 5
+                                [120, 200, 400, 800, 1800, 750, 15000, 25000, 100000, 2000000][rarity])
             coinbonus = int(gotmoney * amuletcoin * 0.05)
             add_game["money"] = gotmoney+coinbonus
             add_game["totalmoney"] = gotmoney+coinbonus
             add_game["caught"] = 1
             #datas[14] += gotmoney
             #datas[9] += gotmoney
-            add_pokemon(player_id, spawnnumber, shiny, True)
+            add_pokemon(player_id, spawnnumber+1, shiny, updateiv=True)
             text = "You caught {} !\nRarity : {} \nCatch power : {} | Catch number : {}\nYou earned {} coins.".format(
                 pokemon, Rarity, iscaught, randomcatch, gotmoney)
             if coinbonus > 0:
@@ -802,8 +844,8 @@ class Game(commands.Cog):
             else:
                 text += "\nYou got lucky and caught the Pokémon."
         #change_values, add_values = "", ""
-        change_values, add_values = [], []
         embed.add_field(name="`Result`", value=text)
+        change_values, add_values = [], []
         change_keys = ", ".join(list(change_game.keys()))
         for key in list(change_game.keys()):
             #change_values = change_values+str(change_game[key])+", "
@@ -830,14 +872,13 @@ class Game(commands.Cog):
             user_id = interaction.user.id
         options = getdata(user_id, "options", "color, language, privacy, name")
         if options is None:
-            await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
 
         sortedbox, total, color, language, privacy, name = 0, 0, options[0], options[1], options[2], options[3]
         if interaction.user.id != user_id and privacy:
             await interaction.response.send_message("You can't see this player's box.", ephemeral=True)
             return
-        print(1)
         box = []
         for i in range(1, len(dex), 5):
             pack = extractlist(user_id, "pokemon", i)
@@ -845,23 +886,18 @@ class Game(commands.Cog):
             #scanning = datas[7][i]
             for j in range(5):
                 if pack[j] > 0 or spack[j]:
-                    rarity = getrarity(i+j+1)
+                    rarity = getrarity(i+j)
                     box.append([i+j, pack[j], spack[j], rarity])
-        print(box)
-        max_pages = len(box)//20+1
-        view = Box(user_id, name, color, language, max_pages, box, 20)
-        print("view")
-
+        max_pages = max(len(box)-1, 0)//20+1
         if page>max_pages:
             page = max_pages
-        print(max_pages)
-        embed = getboxembed(name, color, language, max_pages, page, box, 1)
-        print("getting embed")
-        message = await interaction.response.send_message(embed=embed, view=view)
-        view.message = message
-        print(type(view.message))
+        embed = getboxembed(name, color, language, max_pages, page-1, box, 0)
+        view = Box(interaction.user.id, name, color, language, max_pages, page, box, 20)
+        await interaction.response.send_message(embed=embed, view=view)
+
         await view.wait()
-        await view.disable()
+        await interaction.edit_original_response(view=None)
+        #await view.disable()
 
                     #total += 1
         #total = int((total - 1) / 20) + 1
@@ -1032,7 +1068,7 @@ class Game(commands.Cog):
         await interaction.response.send_message(embed=embed)
     @app_commands.command(name="release", description="Release your Pokémon") # aliases=["rls"]
     @app_commands.checks.cooldown(1, 7)
-    async def release(self, interaction:discord.Interaction, releasing: typing.Optional[str] = "-1", amount: typing.Optional[int] = 1,
+    async def release(self, interaction:discord.Interaction, releasing: typing.Optional[str] = "d", amount: typing.Optional[int] = 1,
                       shiny: typing.Optional[bool] = False):
         """Use this command to release your Pokémon.\nSyntax : `.rls d` to release all your duplicates except Legendary, Mythical, Ultrabest and God ones.\n`.rls <dexnumber> <amount>
         """
@@ -1043,31 +1079,33 @@ class Game(commands.Cog):
         if locked is None:
             await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
-        locked = list(locked)
+        locked = list(locked)[1:]
 
         if releasing == "d":
             box = []
             for i in range(1, len(dex), 5):
                 pack = extractlist(player_id, "pokemon", i)
 
-                # scanning = datas[7][i]
                 for j in range(5):
-                    if pack[j] > 0:
-                        rarity = getrarity(i + j + 1)
+                    if pack[j] > 1:
+                        rarity = getrarity(i + j)
                         if rarity<6:
                             box.append([i + j, pack[j], rarity])
             dupes = [0, 0, 0, 0, 0, 0]
             gotmoney = 0
+            if len(box) == 0:
+                await interaction.response.send_message("You have no duplicates to release !", ephemeral=True)
+                return
             for i in range(len(box)):
                 if box[i][0] in locked:
                     continue
 
                 rarity = box[i][2]
-                if rarity > 5:
-                    continue
+                #if rarity > 5:
+                #    continue
                 dupes[rarity] += box[i][1] - 1
                 gotmoney += (box[i][1] - 1) * releasemoney[rarity]
-                add_pokemon(player_id, box[i][0]-1, False, False, -box[i][1] + 1)
+                add_pokemon(player_id, box[i][0], False, False, -box[i][1] + 1)
                 #release[0] = 1
             setdata(player_id, "game", "money, totalmoney", None, [gotmoney, gotmoney])
             #datas[9] += gotmoney
@@ -1087,12 +1125,13 @@ class Game(commands.Cog):
                 pokeamount = extract(player_id, "pokeshi", releasing)
             else:
                 pokeamount = extract(player_id, "pokemon", releasing)
+                print(pokeamount)
             if pokeamount - amount < 0:
                 await interaction.response.send_message("You can't release Pokémon you don't own.", ephemeral=True)
                 return
             language, = getdata(player_id, "options", "language")
             #datas[7][releasing - 1][int(shiny)] -= amount
-            add_pokemon(player_id, releasing-1, shiny, updateiv=False, amount=-amount)
+            add_pokemon(player_id, releasing, shiny, updateiv=False, amount=-amount)
             rarity = getrarity(releasing)
             gotmoney = amount * releasemoney[rarity] * 1000 ** int(shiny)
             setdata(player_id, "game", "money, totalmoney", None, [gotmoney, gotmoney])
@@ -1282,28 +1321,25 @@ class Game(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="lock", description="Use this command to lock Pokémon from being released")
-    @app_commands.checks.cooldown(1, 10)
+    @app_commands.checks.cooldown(1, 5)
     async def lock(self, interaction:discord.Interaction, locking: typing.Optional[int] = 0):
         """Use this command to lock up to 50 Pokémon from being released by `.rls d`. Legendary, Mythical, Ultrabeast, God and Egg rarities are locked by default. \nSyntax : `.lock <dexnumber>`
         """
         player_id = interaction.user.id
-        #datas = setdata(id, str(interaction.user))
-
         language = getdata(player_id, "options", "language")
         if language is None:
             await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
         language = language[0]
-        locked = list(getdata(player_id, "locked", "*"))
+        locked = list(getdata(player_id, "locked", "*"))[1:]
         locked = [i for i in locked if i>0]
         if locking > 0:
-            try:
-                locking -= 1
+            if locking<len(dex):
                 if locking in locked:
                     locked.remove(locking)
                     locked = locked+[0]*(50-len(locked))
                     setdata(player_id, "locked", lockstr, locked)
-                    await interaction.response.send_message("You unlocked {} from release.".format(dex[locking][language].capitalize()))
+                    await interaction.response.send_message("You unlocked {} from release.".format(dex[locking-1][language].capitalize()))
                     return
                 else:
                     if len(locked) > 49:
@@ -1314,22 +1350,20 @@ class Game(commands.Cog):
                     locked = locked + [0] * (50 - len(locked))
                     setdata(player_id, "locked", lockstr, locked)
                     await interaction.response.send_message(
-                        "You added {} to your locked Pokémon.".format(dex[locking][language].capitalize()))
+                        "You added {} to your locked Pokémon.".format(dex[locking-1][language].capitalize()))
                     return
-
-                # db["player_data"+id] = datas
-            except:
+            else:
                 await interaction.response.send_message("Invalid Pokémon number.")
                 return
-        #if len(locked) == 0:
-        #    await interaction.response.send_message("You can see your locked Pokémon here.")
-        #    return
+        if len(locked) == 0:
+            await interaction.response.send_message("You don't have any locked Pokémon !", ephemeral=True)
+            return
         text = "Locked Pokémon :\n"
         for i in locked:
-            if not locked[i]:
+            if not i:
                 break
-            text += "`{} : {}` {}\n".format(i + 1, rarityname[getrarity(i + 1)], dex[i][language].capitalize())
-        await interaction.response.send_message.send(text)
+            text += "`{} : {}` {}\n".format(i, rarityname[getrarity(i)], dex[i-1][language].capitalize())
+        await interaction.response.send_message(text)
 
     @app_commands.command(name="partner", description="Set your partner Pokémon")
     @app_commands.checks.cooldown(1, 10)
@@ -1506,7 +1540,7 @@ class Game(commands.Cog):
                         value="Put the catch power to 50 no matter what except if a rare razz is activated.\nYou own {} now.".format(
                             fb), inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
-
+    """
     @app_commands.command(name="trivia", description="Start a trivia session") # aliases=["quiz"]
     #@app_commands.has_role("Trivia Organizer")
     @app_commands.checks.cooldown(10, 900)
@@ -1538,7 +1572,7 @@ class Game(commands.Cog):
                                                                                               questionset[question][
                                                                                                   0], datas[0]))
 
-        await interaction.client.get_channel(834362605140705291).send("{} won {} coins as a prize.".format(datas[0], moneyprize))
+        await interaction.client.get_channel(834362605140705291).send("{} won {} coins as a prize.".format(datas[0], moneyprize))"""
 
     @trade.error
     @encounter.error

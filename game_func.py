@@ -215,7 +215,7 @@ def setdata(player_id, table, key, new_data, add=None):
       if add[i]:
         res[i] += add[i]
     new_data = res
-  new_data =  str(new_data)
+  new_data = str(new_data)
   if new_data[0] == '[':
     new_data = str(new_data)[1:]
   if new_data[-1] == ']':
@@ -288,7 +288,7 @@ def getspawnweights(player_id:int):
   except:
     return False, False, 51"""
 
-def getdex(list_name, found_types, stats, sprite, language, number, player_id, shiny):
+def getdex(list_name, found_types, stats, sprite, language, number:int, player_id, shiny):
   vol, dexlink, gamestats = getdata(player_id, "options", "vol, dexlink, gamestats")
   #datas = getgame(player_id, name)
   iv = extract(player_id, "iv", number)
@@ -301,7 +301,7 @@ def getdex(list_name, found_types, stats, sprite, language, number, player_id, s
   if number is None:
     embed = discord.Embed(title = "Pokédex", description = list_name[language].capitalize(), colour = [0xA8A878, 0xC03028, 0xA890F0, 0xA040A0, 0xE0C068, 0xB8A038, 0xA8B820, 0x705898, 0xB8B8D0, 0xF08030, 0x6890F0, 0x78C850, 0xF8D030, 0xF85888, 0x98D8D8, 0x7038F8, 0x705848, 0xEE99AC][types[0]], timestamp = datetime.utcnow())
   else:
-    embed = discord.Embed(title = "Pokédex", description = list_name[language].capitalize()+" #"+str(int(number)+1)+" "+rarityname[getrarity(number+1)], colour = [0xA8A878, 0xC03028, 0xA890F0, 0xA040A0, 0xE0C068, 0xB8A038, 0xA8B820, 0x705898, 0xB8B8D0, 0xF08030, 0x6890F0, 0x78C850, 0xF8D030, 0xF85888, 0x98D8D8, 0x7038F8, 0x705848, 0xEE99AC][found_types[0]], timestamp = datetime.utcnow())
+    embed = discord.Embed(title = "Pokédex", description = list_name[language].capitalize()+" #"+str(number)+" "+rarityname[getrarity(number)], colour = [0xA8A878, 0xC03028, 0xA890F0, 0xA040A0, 0xE0C068, 0xB8A038, 0xA8B820, 0x705898, 0xB8B8D0, 0xF08030, 0x6890F0, 0x78C850, 0xF8D030, 0xF85888, 0x98D8D8, 0x7038F8, 0x705848, 0xEE99AC][found_types[0]], timestamp = datetime.utcnow())
   embed.set_footer(text = "Dislate")
   embed.set_image(url=sprite)
   strypes = types_name[found_types[0]][language]
@@ -365,7 +365,7 @@ def getdex(list_name, found_types, stats, sprite, language, number, player_id, s
     embed.add_field(name = ["`Link`", "`Lien`", "`Link`", "`網站`", "`사이트 링크`", "`Saito rinku`", "`サイトリンク`"][language], value = ["https://bulbapedia.bulbagarden.net/wiki/"+list_name[language]+"_(Pok%C3%A9mon)", "https://www.pokepedia.fr/"+list_name[language], "https://www.pokewiki.de/"+list_name[language], "https://wiki.52poke.com/wiki/"+list_name[language], "https://pokemonkorea.co.kr/pokedex", "https://wiki.xn--rckteqa2e.com/wiki/"+list_name[language], "https://wiki.xn--rckteqa2e.com/wiki/"+list_name[language]][language], inline = True)
   if gamestats: #options[6]: #View game stats
     embed.add_field(name = ["`Caught`", "`Capturé`", "`Erfassung`", "`捕獲`", "`포착`", "`Kyapuchā`", "`キャプチャー`"][language], value = caught, inline = True)
-    embed.add_field(name = ["`Inbox`", "`Dans la boîte`", "`Erfassung`", "`捕獲`", "`포착`", "`Kyapuchā`", "`キャプチャー`"][language], value = inbox, inline = True)
+    embed.add_field(name = ["`Inbox`", "`Dans le pc`", "`Erfassung`", "`捕獲`", "`포착`", "`Kyapuchā`", "`キャプチャー`"][language], value = inbox, inline = True)
     #embed.add_field(name = ["`IVs (Hp/Atk/Def/Spa/Spd/Spe)`", "`IVs (Pv/Att/Def/ASp/DSp/Vit)`", "`IVs (Kra/Ang/Ver/SpA/SpV/Ini)`", "`IVs (Hp/攻击/防御/特攻/特防/速度)`", "`IVs (Hp/공격/방어/특수공격/특수방어/스피드)`", "`IVs (Kō geki/Bōgyo/Toku kō/Toku bō/Subaya-sa)`", "`IVs (Hp/こうげき/ぼうぎょ/とくこう/とくぼう/すばやさ)`"][language], value = "{}/{}/{}/{}/{}/{}".format(datas[7][number][2], datas[7][number][3], datas[7][number][4], datas[7][number][5], datas[7][number][6], datas[7][number][7]), inline = True)
     embed.add_field(name="`IVs`",
                     value=str(iv),
@@ -382,7 +382,7 @@ def extract(player_id:int, incomplete_key:str, dex_number:int):
   """
   data = sqlite3.connect("data.db")
   cursor = data.cursor()
-  cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-1-(dex_number-1)%5+1, player_id))
+  cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-(dex_number-1)%5, player_id))
   result, = cursor.fetchone()
   data.close()
   result = result.split("-")[(dex_number-1)%5]
@@ -402,7 +402,7 @@ def extractlist(player_id:int, incomplete_key:str, dex_number:int):
   """
   data = sqlite3.connect("data.db")
   cursor = data.cursor()
-  cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-1-(dex_number-1)%5+1, player_id))
+  cursor.execute("SELECT {}{} FROM poke WHERE id=={}".format(incomplete_key, dex_number-(dex_number-1)%5, player_id))
   result, = cursor.fetchone()
   data.close()
   result = result.split("-")#[(dex_number-1)%5]
@@ -411,7 +411,7 @@ def extractlist(player_id:int, incomplete_key:str, dex_number:int):
     l = len(amount)
     n = 0
     for i in range(l - 1, -1, -1):
-      n += chars.index(result[i]) * 36 ** (l - 1 - i)
+      n += chars.index(amount[i]) * 36 ** (l - 1 - i)
     L.append(n)
   return L
 
@@ -447,7 +447,7 @@ def write(datas:str, dex_number:int, new_value:int, add:int=0):
 def add_pokemon(player_id:int, dex_number:int, shininess:bool, updateiv:bool=False, amount:int=1):
   """
   :param player_id: The Discord id of the player
-  :param dex_number: The dex number of the Pokémon to be added minus 1
+  :param dex_number: The dex number of the Pokémon to be added
   :param shininess: Booleean indicating whether the Pokémon is shiny or not
   :param updateiv: Booleen indicating whether the IVs should be updated (if it's a real encounter)
   :param amount: The amount to be added
@@ -455,19 +455,22 @@ def add_pokemon(player_id:int, dex_number:int, shininess:bool, updateiv:bool=Fal
   """
   data = sqlite3.connect("data.db")
   cursor = data.cursor()
-  actualkey = dex_number-1-(dex_number-1)%5+1
+  actualkey = dex_number-(dex_number-1)%5
   if shininess:
     cursor.execute("SELECT pokeshi{}, iv{}, cpokeshi{} FROM poke WHERE id=={}".format(actualkey, actualkey, actualkey, player_id))
     pokedata, ivdata, cpokedata = cursor.fetchone()
   else:
     cursor.execute("SELECT pokemon{}, iv{}, cpokemon{} FROM poke WHERE id=={}".format(actualkey, actualkey, actualkey, player_id))
     pokedata, ivdata, cpokedata = cursor.fetchone()
+  print(pokedata, ivdata, cpokedata)
   data.close()
   pokedata = write(pokedata, dex_number, None, amount)
   cpokedata = write(cpokedata, dex_number, None, amount)
   iv = randint(0, 31)
   if updateiv and (iv > extract(player_id, "iv", dex_number)):
     ivdata = write(ivdata, dex_number, iv)
+  else:
+    ivdata = "'{}'".format(ivdata)
   if shininess:
     setdata(player_id, "poke", "pokeshi{}, iv{}, cpokeshi{}".format(actualkey, actualkey, actualkey), "{}, {}, {}".format(pokedata, ivdata, cpokedata))
   else:
@@ -478,18 +481,18 @@ def add_pokemon(player_id:int, dex_number:int, shininess:bool, updateiv:bool=Fal
     datas[12] += 1"""
 
 def getboxtext(box:list, page:int, sort:int, language:int):
-  if sort == 1:
+  if sort == 0:
     box.sort(key=lambda row: (row[0]))
-  elif sort == 2:
+  elif sort == 1:
     box.sort(key=lambda row: (-row[3]))
-  elif sort == 3:
+  elif sort == 2:
     box.sort(key=lambda row: (row[3]))
-  elif sort == 4:
-    box.sort(key=lambda row: (row[2]>0, -row[3]))
+  elif sort == 3:
+    box.sort(key=lambda row: (-row[2], -row[3]))
   text = ""
-  for i in range((page-1)*20, min(page*20, len(box))):
-    text += "`{}` `{}` {} | {} {}\n".format(box[i][0] + 1, rarityname[box[i][3]], box[i][1], box[i][2],
-                                              dex[box[i][0]][language].capitalize())
+  for i in range(page*20, min((page+1)*20, len(box))):
+    text += "`{}` `{}` {} | {} {}\n".format(box[i][0], rarityname[box[i][3]], box[i][1], box[i][2],
+                                              dex[box[i][0]-1][language].capitalize())
   return text
 
 def getboxembed(name:str, color:int, language:int, max_pages:int, page:int, box:list, sort:int):
@@ -497,7 +500,7 @@ def getboxembed(name:str, color:int, language:int, max_pages:int, page:int, box:
   sortedby = ["Dex order", "Rarity descending", "Rarity ascending", "Rarity descending with shinies first"]
   embed = discord.Embed(title="{}'s box".format(name), colour=color, timestamp=datetime.utcnow())
   embed.set_footer(text="Dislate")
-  embed.add_field(name="Page {}/{} ({})".format(1, max_pages, sortedby[sort]), value=text, inline=True)
+  embed.add_field(name="Page {}/{} ({})".format(page+1, max_pages, sortedby[sort]), value=text, inline=True)
   return embed
 def getrarity(number):
   if number in commonpool:
