@@ -155,6 +155,57 @@ def init_lock():
   data.commit()
   data.close()
 
+def init_teams():
+  data = sqlite3.connect('data.db')
+  cursor = data.cursor()
+  cursor.execute("ALTER TABLE game ADD COLUMN {} currentteam DEFAULT 0")
+  cursor.execute("ALTER TABLE game ADD COLUMN {} teamapply DEFAULT 0")
+  cursor.execute("""
+  CREATE TABLE IF NOT EXISTS teams(
+    id INTEGER PRIMARY KEY,
+    teamrocket INTEGER DEFAULT 0,
+    teamaqua INTEGER DEFAULT 0,
+    teammagma INTEGER DEFAULT 0,
+    teamgalaxie INTEGER DEFAULT 0,
+    teamplasma INTEGER DEFAULT 0,
+    teamflare INTEGER DEFAULT 0,
+    teamskull INTEGER DEFAULT 0,
+    aether INTEGER DEFAULT 0,
+    teamrainbowrocket INTEGER DEFAULT 0,
+    teamyell INTEGER DEFAULT 0,
+    macrocosmos INTEGER DEFAULT 0,
+    teamstar INTEGER DEFAULT 0,
+    groupeombre INTEGER DEFAULT 0,
+    bataillonphobos INTEGER DEFAULT 0,
+    sombresheros INTEGER DEFAULT 0,
+    teambreak INTEGER DEFAULT 0,
+    teamgorocket INTEGER DEFAULT 0,
+  )
+  """)
+  cursor.execute("""
+  CREATE TABLE IF NOT EXISTS global(
+    teamrocketsuccess INTEGER DEFAULT 0,
+    teamaquasuccess INTEGER DEFAULT 0,
+    teammagmasuccess INTEGER DEFAULT 0,
+    teamgalaxiesuccess INTEGER DEFAULT 0,
+    teamplasmasuccess INTEGER DEFAULT 0,
+    teamflaresuccess INTEGER DEFAULT 0,
+    teamskullsuccess INTEGER DEFAULT 0,
+    aethersuccess INTEGER DEFAULT 0,
+    teamrainbowrocketsuccess INTEGER DEFAULT 0,
+    teamtellsuccess INTEGER DEFAULT 0,
+    macrocosmossuccess INTEGER DEFAULT 0,
+    teamstarsuccess INTEGER DEFAULT 0,
+    groupeombresuccess INTEGER DEFAULT 0,
+    bataillonphobossuccess INTEGER DEFAULT 0,
+    sombresherossuccess INTEGER DEFAULT 0,
+    teambreaksuccess INTEGER DEFAULT 0,
+    teamgorocketsuccess INTEGER DEFAULT 0
+  )
+  """)
+  data.commit()
+  data.close()
+
 def init_poke():
   data = sqlite3.connect('data.db')
   cursor = data.cursor()
@@ -220,13 +271,34 @@ def setdata(player_id, table, key, new_data, add=None):
     new_data = str(new_data)[1:]
   if new_data[-1] == ']':
     new_data = str(new_data)[:-1]
-  """
-  if "," not in new_data:
-    print("UPDATE {} SET {}={} WHERE id=={}".format(table, key, new_data, player_id))
-    cursor.execute("UPDATE {} SET {}={} WHERE id=={}".format(table, key, new_data, player_id))
-  else:"""
-  print("UPDATE {} SET ({})=({}) WHERE id=={}".format(table, key, new_data, player_id))
-  cursor.execute("UPDATE {} SET ({})=({}) WHERE id=={}".format(table, key, new_data, player_id))
+
+def getglobal(key):
+  data = sqlite3.connect("data.db")
+  cursor = data.cursor()
+  cursor.execute("SELECT {} FROM global".format(key))
+  result = cursor.fetchone()
+  data.close()
+  return result
+
+def setglobal(key, new_data, add=None):
+  data = sqlite3.connect("data.db")
+  cursor = data.cursor()
+  if add is not None:
+    cursor.execute("SELECT {} FROM global".format(key))
+    res = list(cursor.fetchone())
+    for i in range(len(add)):
+      # res[i] = int(res[i])
+      if add[i]:
+        res[i] += add[i]
+    new_data = res
+  new_data = str(new_data)
+  if new_data[0] == '[':
+    new_data = str(new_data)[1:]
+  if new_data[-1] == ']':
+    new_data = str(new_data)[:-1]
+
+  print("UPDATE global SET ({})=({})".format(key, new_data))
+  cursor.execute("UPDATE global SET ({})=({})".format(key, new_data))
   data.commit()
   data.close()
 
@@ -502,27 +574,91 @@ def getboxembed(name:str, color:int, language:int, max_pages:int, page:int, box:
   embed.set_footer(text="Dislate")
   embed.add_field(name="Page {}/{} ({})".format(page+1, max_pages, sortedby[sort]), value=text, inline=True)
   return embed
-def getrarity(number):
-  if number in commonpool:
+
+def team_effect(number:int, in_team:list):
+  """
+  :param number: The dex number of the Pokémon minus 1
+  :param in_team: The list of boolean indicating whether the player is in teams
+  :return: The number of boosts
+  """
+  boost:float = 0
+  for i in range(len(in_team)):
+    if in_team[i]:
+      pokemon_types = types[number]
+      if i==0: #Team Rocket
+        boost = 4 in pokemon_types or number in [149, 150] #Boost si le Pokémon est de type poison
+      if i==1: #Team Aqua
+        boost += 10 in pokemon_types #Boost si le Pokémon est de type eau
+      if i==2:
+        boost += 9 in pokemon_types or 4 in pokemon_types #Boost si le Pokémon est de type feu ou sol
+      if i==3:
+        boost += 13 in pokemon_types or 16 in pokemon_types or number in [482, 483, 486] #Boost si le Pokémon est de type psy ou ténébres
+      if i==4:
+        boost += number in [642, 643, 646] #Boost en relâchant des Pokémon
+      if i==5:
+        boost += 9 in pokemon_types or number in [715, 716, 717] #Boost si le Pokémon est de type feu
+      if i==6:
+        boost += 6 in pokemon_types or 4 in pokemon_types #Boost si le Pokémon est de type insecte ou poison
+      if i==7:
+        boost += bool(getrarity(number+1) == 8 or number in [790, 791, 799])
+      if i==8:
+        boost += 1
+      if i==9:
+        boost += 16 in pokemon_types #Boost si le Pokémon est de type ténébres
+      if i==10:
+        boost += number in [887, 888, 889]
+      if i==11:
+        boost += 16 in pokemon_types or 9 in pokemon_types or 3 in pokemon_types or 17 in pokemon_types or 1 in pokemon_types #Boost si le Pokémon est de type Ténébres, Feu, Poison, Fée ou Combat
+      if 11<i<15:
+        boost += .5
+  return boost
+
+def update_contribution(player_id, achieved, pokemon_number:int=0, released:int=0):
+  applied_team = getdata(player_id, "game", "teampply")
+  applied_team = applied_team[0]-1
+  if achieved == "caught":
+    pokemon_type = types[pokemon_number]
+    if applied_team == 0 and any(pokemon_type[i] in [3] for i in range(len(pokemon_type))): # Team Rocket
+      setdata(player_id, "teams", "teamrocket", None, [1])
+    elif applied_team == 1 and any(pokemon_type[i] in [10] for i in range(len(pokemon_type))): # Team Aqua
+      setdata(player_id, "teams", "teamaqua", None, [1])
+    elif applied_team == 2 and any(pokemon_type[i] in [4, 9] for i in range(len(pokemon_type))): # Team Magma
+      setdata(player_id, "teams", "teammagma", None, [1])
+    elif applied_team == 3 and any(pokemon_type[i] in [13, 16] for i in range(len(pokemon_type))): # Team Galaxie
+      setdata(player_id, "teams", "teamgalaxie", None, [1])
+    elif applied_team == 5 and any(pokemon_type[i] in [9] for i in range(len(pokemon_type))): # Team Flare
+      setdata(player_id, "teams", "teamflare", None, [1])
+    elif applied_team == 6 and any(pokemon_type[i] in [3, 6] for i in range(len(pokemon_type))): # Team Skull
+      setdata(player_id, "teams", "teamskull", None, [1])
+    elif applied_team == 9 and any(pokemon_type[i] in [16] for i in range(len(pokemon_type))): # Team Yell
+      setdata(player_id, "teams", "teamyell", None, [1])
+    elif applied_team == 11 and any(pokemon_type[i] in [1, 3, 9, 16, 17] for i in range(len(pokemon_type))): # Team Star
+      setdata(player_id, "teams", "teamstar", None, [1])
+    return
+  if achieved == "released":
+    setdata(player_id, "teams", "teamplasma", None, [released])
+
+def getrarity(dex_number):
+  if dex_number in commonpool:
     return 0
-  if number in uncommonpool:
+  if dex_number in uncommonpool:
     return 1
-  if number in rarepool:
+  if dex_number in rarepool:
     return 2
-  if number in rarerpool:
+  if dex_number in rarerpool:
     return 3
-  if number in veryrarepool:
+  if dex_number in veryrarepool:
     return 4
-  if number in pseudolegendarypool:
+  if dex_number in pseudolegendarypool:
     return 5
-  if number in legendarypool:
+  if dex_number in legendarypool:
     return 6
-  if number in mythicalpool:
+  if dex_number in mythicalpool:
     return 7
-  if number in ultrabeastpool:
+  if dex_number in ultrabeastpool:
     return 8
-  if number in god:
+  if dex_number in god:
     return 9
-  if number in egg:
+  if dex_number in egg:
     return 10
   return 11

@@ -219,6 +219,7 @@ async def on_ready():
         init_lock()
         init_poke()
         init_options()
+    init_teams()
     print("Logged in as {0.user}".format(bot))
 
 

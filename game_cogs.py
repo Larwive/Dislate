@@ -74,60 +74,6 @@ class Box(discord.ui.View):
             self.sort = (self.sort+1)%4
             embed = getboxembed(self.name, self.color, self.language, self.max_pages, self.page, self.box, self.sort)
             await interaction.response.edit_message(embed=embed, view=self)
-"""
-class Trade(discord.ui.View):
-    success:bool = False
-    confirmed1:bool = False
-    confirmed2:bool = False
-    name1:str = None
-    name2:str = None
-    def __init__(self, id1:int, id2:int, name1:str, name2:str, timeout):
-        super().__init__(timeout=timeout)
-        self.message = None
-        self.id1 = id1
-        self.id2 = id2
-        self.name1 = name1
-        self.name2 = name2
-
-    async def disable(self) -> None:
-        for item in self.children:
-            item.disabled = True
-        await self.message.edit_original_message(view=self)
-
-    async def on_timeout(self) -> None:
-        await self.disable()
-
-    @discord.ui.button(label="Confirm ({})".format(name1), style=discord.ButtonStyle.red)
-    async def confirm1(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.id == self.id1:
-            if self.confirmed2:
-                self.success = True
-                self.stop()
-                #await self.disable()
-                return
-            self.confirmed1 = True
-            button.style = discord.ButtonStyle.success
-            button.label = "Confirmed"
-            button.disabled = True
-            await interaction.response.edit_message(view=self)
-        if interaction.user.id == self.id2:
-            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)
-
-    @discord.ui.button(label="Confirm ({})".format(name2), style=discord.ButtonStyle.red)
-    async def confirm2(self, interaction:discord.Interaction, button:discord.ui.Button):
-        if interaction.user.id == self.id2:
-            if self.confirmed1:
-                self.success = True
-                self.stop()
-                #await self.disable()
-                return
-            self.confirmed2 = True
-            button.style = discord.ButtonStyle.success
-            button.label = "Confirmed"
-            button.disabled = True
-            await interaction.response.edit_message(view=self)
-        if interaction.user.id == self.id1:
-            await interaction.client.get_channel(interaction.channel_id).send("Click on the other button to confirm the trade.", mention_author=True)"""
 
 class TradeButton(discord.ui.Button):
     def __init__(self, id1:int, id2:int, name:str, first:bool):
@@ -380,7 +326,6 @@ class Miscellaneous(commands.Cog):
             await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
             return
         language = language[0]
-        # options = getoption(interaction.user.id)
 
         vol, color, privacy, dexlink, gamestats, raritycolor = getdata(interaction.user.id, "options", "vol, color, privacy, dexlink, gamestats, raritycolor")
         embed = discord.Embed(title="Options",
@@ -407,31 +352,6 @@ class Miscellaneous(commands.Cog):
                         inline=True)
         await interaction.response.send_message(embed=embed)
         return
-
-    """
-        if "color" in args and args.index("color") < len(args):
-            try:
-                color = int(args[args.index("color") + 1], 16)
-                options[2] = color
-            except:
-                await ctx.send("Invalid color value.")
-                return
-
-        if "reset" in args:
-            options = defaultoption
-
-        db["option{}".format(interaction.user.id)] = options
-        embed = discord.Embed(title="Options", description="Your current options", colour=options[2],
-                              timestamp=datetime.utcnow())
-        embed.set_footer(text="Dislate")
-        embed.add_field(name="`v.o.l.`", value=["`Off`", "`On`"][int(options[0])], inline=True)
-        embed.add_field(name="`Prefix`", value="`.`", inline=True)
-        embed.add_field(name="`Language`",
-                        value=["`English`", "`Français`", "`Deutsche`", "`中文`", "`한국어`", "`Hifumi`", "`日文`"][
-                            options[3]], inline=True)
-        embed.add_field(name="`Link`", value=["`Off`", "`On`"][int(options[5])], inline=True)
-        embed.add_field(name="`Privacy`", value=["`Off`", "`On`"][int(options[4])], inline=True)
-        await interaction.response.send_message(embed=embed)"""
 
     @app_commands.command(name="randomen", description="Send you to a random Bulbapedia page")
     @app_commands.checks.cooldown(1, 1)
@@ -469,7 +389,6 @@ class Miscellaneous(commands.Cog):
         if option.lower() not in short:
             await interaction.response.send_message("Incorrrect option.", ephemeral=True)
             return
-        #try:
         current = getdata(interaction.user.id, "options", option)
         if current is None:
             await interaction.response.send_message("Use the  `/play` command before playing !", ephemeral=True)
@@ -478,14 +397,131 @@ class Miscellaneous(commands.Cog):
         new = (current+1)%2
         setdata(interaction.user.id, "options", option, new)
         await interaction.response.send_message("{} is now {}.".format(["`View other languages`", "`Privacy`", "`Links in dex`", "`Game stats`", "`Rarity color`"][short.index(option)], ["disabled", "enabled"][new]))
-        #except:
-        #    await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
 
     @toggle.autocomplete('option')
     async def option_autocomplete(self, interaction: discord.Interaction, current:str) -> typing.List[app_commands.Choice[str]]:
         names = ["View other languages", "Privacy", "Links in dex", "Game stats", "Rarity color"]
         short = ["vol", "privacy", "dexlink", "gamestats", "raritycolor"]
         return [app_commands.Choice(name=names[short.index(l)], value=l) for l in short if current.lower() in l.lower()]
+
+    @app_commands.command(name="clan", description="Toggle your options")
+    @app_commands.checks.cooldown(1, 5)
+    async def clan(self, interaction:discord.Interaction, apply:str="0"):
+        """Use this command to change your options
+        """
+        current = getdata(interaction.user.id, "game", "teamapply")
+        if current is None:
+            await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
+            return
+        current = current[0]
+        if apply == "0":
+            inteamrocket, inteamaqua, inteammagma, inteamgalaxie, inteamplasma, inteamflare, inteamskull, inaether, inteamrainbowrocket, inteamyell, inmacrocosmos, inteamstar, ingroupeombre, inbataillonphobos, insombresheros, inteambreak, inteamgorocket = getdata(interaction.user.id, "team", "teamrocket,teamaqua,teammagma,teamgalaxy,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
+            teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxiesuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocketsuccess = getglobal("teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxysuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocket")
+            teamrockettext = "A powerful team that steal Pokémon from others.\n`Boost :` +10 catch power on Poison Pokémon\nBoost currently {}\n`Status :`{}".format(["inactive", "active"][teamrocketsuccess], ["**You're not in this team**", "**You're in this team**"][inteamrocket>49])
+            teamaquatext = "A team that wants to give back oceans to water Pokémon.\n`Boost :` +10 catch power on Water Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamaquasuccess], ["**You're not in this team**", "**You're in this team**"][inteamaqua>49])
+            teammagmatext = "A team that wants to expand the landmass for humanity.\n`Boost :` +10 catch power on Fire and Ground Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teammagmasuccess], ["**You're not in this team**", "**You're in this team**"][inteammagma>49])
+            teamgalaxietext = "A team that wants to create a purified universe.\n`Boost :` +10 catch power on Psychic and Dark Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamgalaxiesuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamgalaxie>49])
+            teamplasmatext = "A team that wants to release Pokémon from slavery...\n`Boost :` +10 catch power on Reshiram, Zekrom and Kyurem\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamplasmasuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamplasma>49])
+            teamflaretext = "A team that wants to create a beautiful and better world by eliminating what is not.\n`Boost :` +10 catch power on Fire Pokémon and Yveltal, Xerneas and Zygarde\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamflaresuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamflare>49])
+            teamskulltext = "A team that wants to annoy other people.\n`Boost :` +10 catch power on Bug or Poison Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamskullsuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamskull>49])
+            aethertext = "A team that wants to heal wounded Pokémon...\n`Boost :` +10 catch power on Solgaleo, Lunala and Necrozma\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][aethersuccess],
+                ["**You're not in this team**", "**You're in this team**"][inaether>49])
+            teamrainbowrockettext = "A mysterious team leaded by Giovanni...\n`Boost :` +10 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamrainbowrocketsuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamrainbowrocket>49])
+            teamyelltext = "A team cheering Marnie.\n`Boost :` +10 catch power on Dark Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamyellsuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamyell>49])
+            macrocosmostext = "A team that wanted to save Galar.\n`Boost :` +10 catch power on Zacian, Zamazenta and Ethernatos\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][macrocosmossuccess],
+                ["**You're not in this team**", "**You're in this team**"][inmacrocosmos>49])
+            teamstartext = "A team of bad students.\n`Boost :` +10 catch power on Dark, Fire, Poison, Fairy and Fighting Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamstarsuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamstar>49])
+            groupeombretext = "A team that uses shadow Pokémon to reign over Orre.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][groupeombresuccess],
+                ["**You're not in this team**", "**You're in this team**"][ingroupeombre>49])
+            bataillonphobostext = "A team that steal Pokémon to power up a secret weapon.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][bataillonphobossuccess],
+                ["**You're not in this team**", "**You're in this team**"][inbataillonphobos>49])
+            sombresherostext = "A team that control Pokémon to dominate the world.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][sombresherossuccess],
+                ["**You're not in this team**", "**You're in this team**"][insombresheros>49])
+            teambreaktext = "A team that steal Pokémon.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teambreaksuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteambreak>49])
+            teamgorockettext = "A team that uses shadow Pokémon to invade Pokéstops.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["inactive", "active"][teamgorocketsuccess],
+                ["**You're not in this team**", "**You're in this team**"][inteamgorocket>49])
+            if not current:
+                description = "You are currently not applying to any team."
+            else:
+                current -= 1
+                description = "Currently applying to {}. Progress : {}/500".format(team_names[apply], eval(apply))
+            embed = discord.Embed(title="Clans",
+                                  description=description,
+                                  colour=0x000000, timestamp=datetime.utcnow())
+            embed.set_footer(text="Dislate")
+            embed.add_field(name="{} Team Rocket".format(team_emojis[1]),
+                            value=teamrockettext, inline=True)
+            embed.add_field(name="{} Team Aqua".format(team_emojis[2]),
+                            value=teamaquatext, inline=True)
+            embed.add_field(name="{} Team Magma".format(team_emojis[3]),
+                            value=teammagmatext, inline=True)
+            embed.add_field(name="{} Team Galaxie".format(team_emojis[4]),
+                            value=teamgalaxietext, inline=True)
+            embed.add_field(name="{} Team Plasma".format(team_emojis[5]),
+                            value=teamplasmatext, inline=True)
+            embed.add_field(name="{} Team Flare".format(team_emojis[6]),
+                            value=teamflaretext, inline=True)
+            embed.add_field(name="{} Team skull".format(team_emojis[7]),
+                            value=teamskulltext, inline=True)
+            embed.add_field(name="{} Fondation Aether".format(team_emojis[8]),
+                            value=aethertext, inline=True)
+            embed.add_field(name="{} Team Rainbow Rocket".format(team_emojis[9]),
+                            value=teamrainbowrockettext, inline=True)
+            embed.add_field(name="{} Team Yell".format(team_emojis[10]),
+                            value=teamyelltext, inline=True)
+            embed.add_field(name="{} Macro Cosmos".format(team_emojis[11]),
+                            value=macrocosmostext, inline=True)
+            embed.add_field(name="{} Team Star".format(team_emojis[12]),
+                            value=teamstartext, inline=True)
+            embed.add_field(name="{} Groupe Ombre".format(team_emojis[13]),
+                            value=groupeombretext, inline=True)
+            embed.add_field(name="{} Bataillon Phobos".format(team_emojis[14]),
+                            value=bataillonphobostext, inline=True)
+            embed.add_field(name="{} Équipe Sombres Héros".format(team_emojis[15]),
+                            value=sombresherostext, inline=True)
+            embed.add_field(name="{} Team Break".format(team_emojis[16]),
+                            value=teambreaktext, inline=True)
+            embed.add_field(name="{} Team Go Rocket".format(team_emojis[17]),
+                            value=teamgorockettext, inline=True)
+            await interaction.response.send_message(embed=embed)
+            return
+
+        if apply.lower() not in team_short:
+            await interaction.response.send_message("Incorrrect team.", ephemeral=True)
+            return
+
+        index = team_short.index(apply)
+
+        setdata(interaction.user.id, "options", "teamaply", index+1)
+        await interaction.response.send_message("You applied to {} {}.".format(team_emojis[index], team_names[index]))
+
+    @clan.autocomplete('apply')
+    async def apply_autocomplete(self, interaction: discord.Interaction, current:str) -> typing.List[app_commands.Choice[str]]:
+        return [app_commands.Choice(name=team_names[team_short.index(l)], value=l) for l in team_short[1:] if current.lower() in l.lower()]
 
     @app_commands.command(name="setlanguage", description="Set the language of some parts of Dislate")
     @app_commands.checks.cooldown(1, 20)
@@ -497,7 +533,6 @@ class Miscellaneous(commands.Cog):
             return
         try:
             setdata(interaction.user.id, "options", "language", languages.index(lang.lower()))
-            #setlanguage(interaction.user.id, languages.index(lang.lower()))
             await interaction.response.send_message("Changed language to {}.".format(lang.lower()))
         except:
             await interaction.response.send_message("An error occurred. Please retry or contact the owner.", ephemeral=True)
@@ -548,37 +583,32 @@ class Game(commands.Cog):
     async def trade(self, interaction:discord.Interaction, player:discord.User, pokemon1:int, pokemon2:int, shiny1: typing.Optional[bool] = False, shiny2: typing.Optional[bool] = False):
         """Use this command to trade with other players. Syntax : `.trade <id or mention> <"shiny" (optional)> <Dexnumber1> <"shiny" (optional)> <Dexnumber2>`
         """
-        print("start")
         other_id = player.id
         player_id = interaction.user.id
-        print(other_id, player_id)
-        #tradero = setdata(id, None)
-        #tradert = setdata(idt, None)
+
         name1 = getdata(player_id, "options", "name")
-        print(name1)
+
         if name1 is None:
             await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
-        print(5)
+
         name2 = getdata(other_id, "options", "name")
-        print(name2)
+
         if name2 is None:
             await interaction.response.send_message("Use the `/play` command before playing !", ephemeral=True)
             return
         #shiny1 = args[0].lower() in ["shiny", "chromatique", "schillernden", "schillerndes", "異色", "發光", "빛나는", "iro chigai", "色違い"]
 
-        print("poke{}".format(["mon", "shi"][shiny1]))
         pokeamount = extract(player_id, "poke{}".format(["mon", "shi"][shiny1]), pokemon1)
-        print(pokeamount)
+
         if pokeamount < 1:
             await interaction.response.send_message("You don't have the Pokémon you're proposing.", ephemeral=True)
             return
-        print("poke{}".format(["mon", "shi"][shiny2]))
         pokeamount = extract(other_id, "poke{}".format(["mon", "shi"][shiny2]), pokemon2)
         if pokeamount < 1:
             await interaction.response.send_message("The other player doesn't have the Pokémon you want.", ephemeral=True)
             return
-        print("amount passed")
+
         """def check1(m):
             return str(m.author.id) == id and m.channel == ctx.message.channel and m.content.lower() == "confirm"
 
@@ -613,10 +643,6 @@ class Game(commands.Cog):
         add_pokemon(other_id, pokemon2, shiny2, amount=-1)
         add_pokemon(player_id, pokemon2, shiny2, amount=1)
         add_pokemon(other_id, pokemon1, shiny1, amount=1)
-        #tradero[7][poke1 - 1][int(shiny1)] -= 1
-        #tradert[7][poke2 - 1][int(shiny2)] -= 1
-        #tradero[7][poke2 - 1][int(shiny2)] += 1
-        #tradert[7][poke1 - 1][int(shiny1)] += 1
         embed = discord.Embed(title="Trade", colour=0x000000, timestamp=datetime.utcnow())
         embed.set_footer(text="Dislate")
         embed.add_field(name="Successful trade",
@@ -638,7 +664,9 @@ class Game(commands.Cog):
             return
         name, color, language, raritycolor = options
 
-        frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney")
+        frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney, currentteam = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney, currentteam")
+        team_progress = getdata(interaction.user.id, "team", "teamrocket,teamaqua,teammagma,teamgalaxy,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
+        in_team = [progress>500 for progress in team_progress]
         add_game = {}
         change_game = {}
         #specialencounter = datas[21]
@@ -681,7 +709,15 @@ class Game(commands.Cog):
             rarity = choices([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], weights=spawnweight)[0]
             spawnnumber = choices(
                 [commonpool, uncommonpool, rarepool, rarerpool, veryrarepool, pseudolegendarypool, legendarypool,
-                    mythicalpool, ultrabeastpool, god][rarity])[0] - 1
+                    mythicalpool, ultrabeastpool, god][rarity])[0]
+            if currentteam and not team_effect(spawnnumber-1, in_team):
+
+                spawnnumber = choices(
+                    [commonpool, uncommonpool, rarepool, rarerpool, veryrarepool, pseudolegendarypool, legendarypool,
+                     mythicalpool, ultrabeastpool, god][rarity])[0]
+
+            spawnnumber-=1
+
         if dreamed == spawnnumber:
             effecttext += "\nThis is your dreamed Pokémon !"
         if partner == spawnnumber:
@@ -789,7 +825,7 @@ class Game(commands.Cog):
                     recleft > 0) - int(2 * recleft / (1+25 * rbeffect)) + 60 * int(
                 rarity == 8 and sentball == "bb") + 150 * int(
                 dreamed == spawnnumber and sentball == "db") + 150 * int(
-                partner == spawnnumber and sentball == "cb")
+                partner == spawnnumber and sentball == "cb") + 10*team_effect(spawnnumber, in_team)
         if fakee:
             iscaught += 20
         if raree:
@@ -847,7 +883,7 @@ class Game(commands.Cog):
                     text += "\nLucky ! Your recoil got reduced by {}.".format(reduction)
                     if state > 0:
                         text += "You got lucky and an Premier ball was thrown."
-
+            update_contribution(player_id, "caught", pokemon_number=spawnnumber)
                     # await message.channel.send("You caught {} !\nCatch power : {}  Catch number : {}\nYou earned {} coins.".format(pokemon, iscaught, randomcatch, gotmoney))
         else:
             text = "{} broke free !\nRarity : {} \nCatch power : {} | Catch number : {}".format(pokemon, Rarity,
@@ -1128,6 +1164,7 @@ class Game(commands.Cog):
             #datas[9] += gotmoney
             #datas[14] += gotmoney
             # db["player_data"+id] = datas
+            update_contribution(player_id, "released", released=sum(dupes))
             await interaction.response.send_message(
                 "You got {} coins by releasing\n{} common\n{} uncommon\n{} rare\n{} rarer\n{} very rare\n{} pseudo legendary".format(
                     gotmoney, dupes[0], dupes[1], dupes[2], dupes[3], dupes[4], dupes[5]))
@@ -1153,6 +1190,7 @@ class Game(commands.Cog):
             gotmoney = amount * releasemoney[rarity] * 1000 ** int(shiny)
             setdata(player_id, "game", "money, totalmoney", None, [gotmoney, gotmoney])
             # db["player_data"+id] = datas
+            update_contribution(player_id, "released", released=amount)
             released = dex[releasing - 1][language].capitalize()
             if shiny:
                 released = "shiny " + released

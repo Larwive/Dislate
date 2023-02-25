@@ -21,11 +21,9 @@ c.execute("""
   """)
 #Insert links into table
 def data_entry():
-    for i in range(6,2000, 5):
 
-        #c.execute("INSERT INTO server(sites) VALUES(?)", (item,))
-        col = "poke{}{}".format("0"*((i<10)+(i<100)+(i<1000)), i)
-        c.execute("ALTER TABLE server ADD COLUMN {} real DEFAULT 0".format(col))
+    c.execute("ALTER TABLE game ADD COLUMN {} currentteam DEFAULT 0")
+    c.execute("ALTER TABLE game ADD COLUMN {} teamapply DEFAULT 0")
     conn.commit()
 
 id, name, vol, color, privacy, dexlink, gamestats = 1732, "Yourname", 0, 6, 1, 1, 1
