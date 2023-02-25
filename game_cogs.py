@@ -224,6 +224,7 @@ class Owner(commands.Cog):
             add_pokemon(target_id, number-1, shiny, amount=1)
             await ctx.send("You gave a{} {} to {}.".format(["", " shiny"][shiny], dex[number][0].capitalize(), id))
 
+
     @commands.command(hidden = True)
     async def se(self, ctx, giveid, dexnumber: typing.Optional[int] = 1, shiny: typing.Optional[bool] = False):
         if ctx.message.author.id in authors:
@@ -233,6 +234,22 @@ class Owner(commands.Cog):
                 giveid = str(giveid)
             setdata(giveid, "game", "seenabled, sedex, seisshiny", [True, dexnumber, shiny])
             await ctx.send("You gave a {}{} special encounter to {}.".format(["", "shiny "][shiny], dex[dexnumber -1][0], giveid))
+
+    @commands.command(hidden = True)
+    async def debug(self, ctx, player_id, query:str):
+        if ctx.message.author.id in authors:
+            try:
+                player_id = ctx.message.mentions[0].id
+            except:
+                pass
+            data = sqlite3.connect("data.db")
+            cursor = data.cursor()
+            request = query+" WHERE id=={}".format(player_id)
+            print(request)
+            cursor.execute(request)
+            data.commit()
+            data.close()
+            await ctx.send("Query successfully succeed.")
 
     @commands.command(hidden = True)
     async def clearrb(self, ctx, clearid: typing.Optional[str] = "373707498479288330"):
