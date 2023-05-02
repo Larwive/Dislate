@@ -1,4 +1,4 @@
-import asyncio
+
 import typing
 
 import discord
@@ -415,60 +415,60 @@ class Miscellaneous(commands.Cog):
             return
         current = current[0]
         if apply == "0":
-            inteamrocket, inteamaqua, inteammagma, inteamgalaxie, inteamplasma, inteamflare, inteamskull, inaether, inteamrainbowrocket, inteamyell, inmacrocosmos, inteamstar, ingroupeombre, inbataillonphobos, insombresheros, inteambreak, inteamgorocket = getdata(interaction.user.id, "team", "teamrocket,teamaqua,teammagma,teamgalaxy,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
-            teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxiesuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocketsuccess = getglobal("teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxysuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocket")
-            teamrockettext = "A powerful team that steal Pokémon from others.\n`Boost :` +10 catch power on Poison Pokémon\nBoost currently {}\n`Status :`{}".format(["inactive", "active"][teamrocketsuccess], ["**You're not in this team**", "**You're in this team**"][inteamrocket>49])
+            inteamrocket, inteamaqua, inteammagma, inteamgalaxie, inteamplasma, inteamflare, inteamskull, inaether, inteamrainbowrocket, inteamyell, inmacrocosmos, inteamstar, ingroupeombre, inbataillonphobos, insombresheros, inteambreak, inteamgorocket = getdata(interaction.user.id, "teams", "teamrocket,teamaqua,teammagma,teamgalaxie,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
+            inteams = [inteamrocket, inteamaqua, inteammagma, inteamgalaxie, inteamplasma, inteamflare, inteamskull, inaether, inteamrainbowrocket, inteamyell, inmacrocosmos, inteamstar, ingroupeombre, inbataillonphobos, insombresheros, inteambreak, inteamgorocket]
+            teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxiesuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocketsuccess = getglobal("teamrocketsuccess, teamaquasuccess, teammagmasuccess, teamgalaxiesuccess, teamplasmasuccess, teamflaresuccess, teamskullsuccess, aethersuccess, teamrainbowrocketsuccess, teamyellsuccess, macrocosmossuccess, teamstarsuccess, groupeombresuccess, bataillonphobossuccess, sombresherossuccess, teambreaksuccess, teamgorocketsuccess")
+            teamrockettext = "A powerful team that steal Pokémon from others.\n`Boost :` +10 catch power on Poison Pokémon\nBoost currently {}\n`Status :`{}".format(["inactive", "active"][teamrocketsuccess], ["**You're not in this team**", "**You're in this team**"][inteamrocket>499])
             teamaquatext = "A team that wants to give back oceans to water Pokémon.\n`Boost :` +10 catch power on Water Pokémon\nBoost currently {}\n`Status :`{}".format(
-                ["inactive", "active"][teamaquasuccess], ["**You're not in this team**", "**You're in this team**"][inteamaqua>49])
+                ["inactive", "active"][teamaquasuccess], ["**You're not in this team**", "**You're in this team**"][inteamaqua>499])
             teammagmatext = "A team that wants to expand the landmass for humanity.\n`Boost :` +10 catch power on Fire and Ground Pokémon\nBoost currently {}\n`Status :`{}".format(
-                ["inactive", "active"][teammagmasuccess], ["**You're not in this team**", "**You're in this team**"][inteammagma>49])
+                ["inactive", "active"][teammagmasuccess], ["**You're not in this team**", "**You're in this team**"][inteammagma>499])
             teamgalaxietext = "A team that wants to create a purified universe.\n`Boost :` +10 catch power on Psychic and Dark Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamgalaxiesuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamgalaxie>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamgalaxie>499])
             teamplasmatext = "A team that wants to release Pokémon from slavery...\n`Boost :` +10 catch power on Reshiram, Zekrom and Kyurem\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamplasmasuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamplasma>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamplasma>499])
             teamflaretext = "A team that wants to create a beautiful and better world by eliminating what is not.\n`Boost :` +10 catch power on Fire Pokémon and Yveltal, Xerneas and Zygarde\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamflaresuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamflare>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamflare>499])
             teamskulltext = "A team that wants to annoy other people.\n`Boost :` +10 catch power on Bug or Poison Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamskullsuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamskull>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamskull>499])
             aethertext = "A team that wants to heal wounded Pokémon...\n`Boost :` +10 catch power on Solgaleo, Lunala and Necrozma\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][aethersuccess],
-                ["**You're not in this team**", "**You're in this team**"][inaether>49])
+                ["**You're not in this team**", "**You're in this team**"][inaether>499])
             teamrainbowrockettext = "A mysterious team leaded by Giovanni...\n`Boost :` +10 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamrainbowrocketsuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamrainbowrocket>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamrainbowrocket>499])
             teamyelltext = "A team cheering Marnie.\n`Boost :` +10 catch power on Dark Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamyellsuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamyell>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamyell>499])
             macrocosmostext = "A team that wanted to save Galar.\n`Boost :` +10 catch power on Zacian, Zamazenta and Ethernatos\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][macrocosmossuccess],
-                ["**You're not in this team**", "**You're in this team**"][inmacrocosmos>49])
+                ["**You're not in this team**", "**You're in this team**"][inmacrocosmos>499])
             teamstartext = "A team of bad students.\n`Boost :` +10 catch power on Dark, Fire, Poison, Fairy and Fighting Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamstarsuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamstar>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamstar>499])
             groupeombretext = "A team that uses shadow Pokémon to reign over Orre.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][groupeombresuccess],
-                ["**You're not in this team**", "**You're in this team**"][ingroupeombre>49])
+                ["**You're not in this team**", "**You're in this team**"][ingroupeombre>499])
             bataillonphobostext = "A team that steal Pokémon to power up a secret weapon.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][bataillonphobossuccess],
-                ["**You're not in this team**", "**You're in this team**"][inbataillonphobos>49])
+                ["**You're not in this team**", "**You're in this team**"][inbataillonphobos>499])
             sombresherostext = "A team that control Pokémon to dominate the world.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][sombresherossuccess],
-                ["**You're not in this team**", "**You're in this team**"][insombresheros>49])
-            teambreaktext = "A team that steal Pokémon.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
+                ["**You're not in this team**", "**You're in this team**"][insombresheros>499])
+            teambreaktext = "A team that steals Pokémon.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teambreaksuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteambreak>49])
+                ["**You're not in this team**", "**You're in this team**"][inteambreak>499])
             teamgorockettext = "A team that uses shadow Pokémon to invade Pokéstops.\n`Boost :` +5 catch power on every Pokémon\nBoost currently {}\n`Status :`{}".format(
                 ["inactive", "active"][teamgorocketsuccess],
-                ["**You're not in this team**", "**You're in this team**"][inteamgorocket>49])
+                ["**You're not in this team**", "**You're in this team**"][inteamgorocket>499])
             if not current:
                 description = "You are currently not applying to any team."
             else:
-                current -= 1
-                description = "Currently applying to {}. Progress : {}/500".format(team_names[apply], eval(apply))
+                description = "Currently applying to {}. Progress : {}/500".format(team_names[current], inteams[current-1])
             embed = discord.Embed(title="Clans",
                                   description=description,
                                   colour=0x000000, timestamp=datetime.utcnow())
@@ -515,8 +515,8 @@ class Miscellaneous(commands.Cog):
             return
 
         index = team_short.index(apply)
-
-        setdata(interaction.user.id, "options", "teamaply", index+1)
+        print(index)
+        setdata(interaction.user.id, "game", "teamapply", [index])
         await interaction.response.send_message("You applied to {} {}.".format(team_emojis[index], team_names[index]))
 
     @clan.autocomplete('apply')
@@ -565,6 +565,7 @@ class Miscellaneous(commands.Cog):
     @randomfr.error
     @message.error
     @toggle.error
+    @clan.error
     @lang.error
     @calc.error
     async def on_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
@@ -664,22 +665,17 @@ class Game(commands.Cog):
             return
         name, color, language, raritycolor = options
 
-        frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney, currentteam = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney, currentteam")
-        team_progress = getdata(interaction.user.id, "team", "teamrocket,teamaqua,teammagma,teamgalaxy,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
-        in_team = [progress>500 for progress in team_progress]
+        frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney = getdata(player_id, "game", "frazzleft, rrazzleft, lmleft, money, pb, gb, ub, mb, rb, bb, qb, db, cb, prb, fb, recleft, rbred, rbeffect, rbluck, amuletcoin, seenabled, sedex, seisshiny, partner, dreamed, money, totalmoney")
+        team_progress = getdata(interaction.user.id, "teams", "teamrocket,teamaqua,teammagma,teamgalaxie,teamplasma,teamflare,teamskull,aether,teamrainbowrocket,teamyell,macrocosmos,teamstar,groupeombre,bataillonphobos,sombresheros,teambreak,teamgorocket")
+        in_team = [progress>499 for progress in team_progress]
+        print(in_team)
         add_game = {}
         change_game = {}
-        #specialencounter = datas[21]
 
         fakee, raree, luckye = False, False, False
 
-
-        #def is_correct(m):
-        #    return m.author.id == player_id and m.content.lower() in listballs and datas[10][
-        #        listballs.index(m.content.lower())] > 0
         spawnweight = getspawnweights(player_id)
         effecttext = ""
-
         if frazzleft > 0:
             add_game["frazzleft"] = -1
             effecttext = "Fake razz ({} encounter{} left)".format(frazzleft, ["s", ""][frazzleft==1])
@@ -710,8 +706,8 @@ class Game(commands.Cog):
             spawnnumber = choices(
                 [commonpool, uncommonpool, rarepool, rarerpool, veryrarepool, pseudolegendarypool, legendarypool,
                     mythicalpool, ultrabeastpool, god][rarity])[0]
-            if currentteam and not team_effect(spawnnumber-1, in_team):
-
+            print("calculating effects")
+            if not team_effect(spawnnumber-1, in_team):
                 spawnnumber = choices(
                     [commonpool, uncommonpool, rarepool, rarerpool, veryrarepool, pseudolegendarypool, legendarypool,
                      mythicalpool, ultrabeastpool, god][rarity])[0]
@@ -883,7 +879,9 @@ class Game(commands.Cog):
                     text += "\nLucky ! Your recoil got reduced by {}.".format(reduction)
                     if state > 0:
                         text += "You got lucky and an Premier ball was thrown."
+            print("UPDATING contribution")
             update_contribution(player_id, "caught", pokemon_number=spawnnumber)
+            print("UPDATED")
                     # await message.channel.send("You caught {} !\nCatch power : {}  Catch number : {}\nYou earned {} coins.".format(pokemon, iscaught, randomcatch, gotmoney))
         else:
             text = "{} broke free !\nRarity : {} \nCatch power : {} | Catch number : {}".format(pokemon, Rarity,
